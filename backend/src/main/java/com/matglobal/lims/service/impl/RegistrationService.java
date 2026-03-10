@@ -3,7 +3,7 @@ package com.matglobal.lims.service.impl;
 import com.matglobal.lims.dto.request.RegistrationRequest;
 import com.matglobal.lims.dto.response.RegistrationResponse;
 import com.matglobal.lims.entity.*;
-import com.matglobal.lims.exception.*;
+import com.matglobal.lims.exception.ResourceNotFoundException;
 import com.matglobal.lims.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -36,8 +37,7 @@ public class RegistrationService {
 
     private synchronized String nextRegNo() {
         if (regSequence == null) {
-            long max = registrationRepository.count();
-            regSequence = new AtomicLong(startNumber + max);
+            regSequence = new AtomicLong(startNumber + registrationRepository.count());
         }
         return String.valueOf(regSequence.getAndIncrement());
     }
@@ -47,10 +47,8 @@ public class RegistrationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Patient", req.getPatientId()));
 
         ReferringDoctor refDoc = req.getRefDoctorId() != null
-                ? refDoctorRepository.findById(req.getRefDoctorId()).orElse(null)
-                : null;
+                ? refDoctorRepository.findById(req.getRefDoctorId()).orElse(null) : null;
 
-        // Calculate billing
         List<Test> tests = testRepository.findAllById(req.getTestIds());
         BigDecimal total = tests.stream().map(Test::getRate)
                 .filter(r -> r != null).reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -68,26 +66,33 @@ public class RegistrationService {
         BigDecimal paidAmount = req.getPaidAmount() != null ? req.getPaidAmount() : BigDecimal.ZERO;
         BigDecimal balance = netAmount.subtract(paidAmount).max(BigDecimal.ZERO);
 
-        Registration reg = Registration.builder()
-                .regNo(nextRegNo()).patient(patient).refDoctor(refDoc)
-                .patientType(req.getPatientType()).center(req.getCenter())
-                .paymentType(req.getPaymentType())
-                .totalAmount(total).otherCharges(otherCharges)
-                .discountAmount(discountAmt).discountType(req.getDiscountType())
-                .netAmount(netAmount).paidAmount(paidAmount).balanceAmount(balance)
-                .remarks(req.getRemarks())
-                .notifyOnLab(Boolean.TRUE.equals(req.getNotifyOnLab()))
-                .notifyEmail(Boolean.TRUE.equals(req.getNotifyEmail()))
-                .notifyWhatsapp(Boolean.TRUE.equals(req.getNotifyWhatsapp()))
-                .isEmergency(Boolean.TRUE.equals(req.getIsEmergency()))
-                .status(Registration.RegistrationStatus.REGISTERED)
-                .build();
+        Registration reg = new Registration();
+        reg.setRegNo(nextRegNo());
+        reg.setPatient(patient);
+        reg.setRefDoctor(refDoc);
+        reg.setPatientType(req.getPatientType());
+        reg.setCenter(req.getCenter());
+        reg.setPaymentType(req.getPaymentType());
+        reg.setTotalAmount(total);
+        reg.setOtherCharges(otherCharges);
+        reg.setDiscountAmount(discountAmt);
+        reg.setDiscountType(req.getDiscountType());
+        reg.setNetAmount(netAmount);
+        reg.setPaidAmount(paidAmount);
+        reg.setBalanceAmount(balance);
+        reg.setRemarks(req.getRemarks());
+        reg.setNotifyOnLab(Boolean.TRUE.equals(req.getNotifyOnLab()));
+        reg.setNotifyEmail(Boolean.TRUE.equals(req.getNotifyEmail()));
+        reg.setNotifyWhatsapp(Boolean.TRUE.equals(req.getNotifyWhatsapp()));
+        reg.setIsEmergency(Boolean.TRUE.equals(req.getIsEmergency()));
+        reg.setStatus(Registration.RegistrationStatus.REGISTERED);
 
-        // Add tests
         for (Test t : tests) {
-            RegistrationTest rt = RegistrationTest.builder()
-                    .registration(reg).test(t).rate(t.getRate())
-                    .status(RegistrationTest.TestStatus.PENDING).build();
+            RegistrationTest rt = new RegistrationTest();
+            rt.setRegistration(reg);
+            rt.setTest(t);
+            rt.setRate(t.getRate());
+            rt.setStatus(RegistrationTest.TestStatus.PENDING);
             reg.getRegistrationTests().add(rt);
         }
 
@@ -102,13 +107,11 @@ public class RegistrationService {
 
     @Transactional(readOnly = true)
     public Page<RegistrationResponse> search(LocalDateTime from, LocalDateTime to,
-                                              String patientName, String mobile, String regNo,
-                                              String status, int page, int size) {
-        Registration.RegistrationStatus statusEnum = status != null && !status.isEmpty()
+            String patientName, String mobile, String regNo, String status, int page, int size) {
+        Registration.RegistrationStatus statusEnum = (status != null && !status.isEmpty())
                 ? Registration.RegistrationStatus.valueOf(status) : null;
         if (from == null) from = LocalDateTime.now().with(LocalTime.MIN);
         if (to == null) to = LocalDateTime.now().with(LocalTime.MAX);
-
         return registrationRepository.searchRegistrations(from, to, patientName, mobile, regNo, statusEnum,
                 PageRequest.of(page, size, Sort.by("createdAt").descending()))
                 .map(this::toResponse);
@@ -122,33 +125,59 @@ public class RegistrationService {
     }
 
     private RegistrationResponse toResponse(Registration r) {
-        List<RegistrationResponse.TestInfo> testInfos = r.getRegistrationTests().stream()
-                .map(rt -> RegistrationResponse.TestInfo.builder()
-                        .id(rt.getTest().getId()).code(rt.getTest().getCode())
-                        .name(rt.getTest().getName()).type(rt.getTest().getType())
-                        .rate(rt.getRate()).clientRate(rt.getClientRate())
-                        .status(rt.getStatus().name()).build())
-                .collect(Collectors.toList());
+        List<RegistrationResponse.TestInfo> testInfos = r.getRegistrationTests().stream().map(rt -> {
+            RegistrationResponse.TestInfo ti = new RegistrationResponse.TestInfo();
+            ti.setId(rt.getTest().getId());
+            ti.setCode(rt.getTest().getCode());
+            ti.setName(rt.getTest().getName());
+            ti.setType(rt.getTest().getType());
+            ti.setRate(rt.getRate());
+            ti.setClientRate(rt.getClientRate());
+            ti.setStatus(rt.getStatus().name());
+            return ti;
+        }).collect(Collectors.toList());
 
-        return RegistrationResponse.builder()
-                .id(r.getId()).regNo(r.getRegNo())
-                .patient(RegistrationResponse.PatientInfo.builder()
-                        .id(r.getPatient().getId()).name(r.getPatient().getName())
-                        .gender(r.getPatient().getGender()).age(r.getPatient().getAge())
-                        .ageUnit(r.getPatient().getAgeUnit()).mobile(r.getPatient().getMobile())
-                        .email(r.getPatient().getEmail()).build())
-                .refDoctor(r.getRefDoctor() != null ? RegistrationResponse.RefDoctorInfo.builder()
-                        .id(r.getRefDoctor().getId()).code(r.getRefDoctor().getCode())
-                        .name(r.getRefDoctor().getName()).build() : null)
-                .patientType(r.getPatientType()).center(r.getCenter())
-                .paymentType(r.getPaymentType()).totalAmount(r.getTotalAmount())
-                .otherCharges(r.getOtherCharges()).discountAmount(r.getDiscountAmount())
-                .discountType(r.getDiscountType()).netAmount(r.getNetAmount())
-                .paidAmount(r.getPaidAmount()).balanceAmount(r.getBalanceAmount())
-                .remarks(r.getRemarks()).notifyOnLab(r.getNotifyOnLab())
-                .notifyEmail(r.getNotifyEmail()).notifyWhatsapp(r.getNotifyWhatsapp())
-                .isEmergency(r.getIsEmergency()).status(r.getStatus().name())
-                .tests(testInfos).createdAt(r.getCreatedAt()).createdBy(r.getCreatedBy())
-                .build();
+        RegistrationResponse.PatientInfo pi = new RegistrationResponse.PatientInfo();
+        pi.setId(r.getPatient().getId());
+        pi.setName(r.getPatient().getName());
+        pi.setGender(r.getPatient().getGender());
+        pi.setAge(r.getPatient().getAge());
+        pi.setAgeUnit(r.getPatient().getAgeUnit());
+        pi.setMobile(r.getPatient().getMobile());
+        pi.setEmail(r.getPatient().getEmail());
+
+        RegistrationResponse.RefDoctorInfo rdi = null;
+        if (r.getRefDoctor() != null) {
+            rdi = new RegistrationResponse.RefDoctorInfo();
+            rdi.setId(r.getRefDoctor().getId());
+            rdi.setCode(r.getRefDoctor().getCode());
+            rdi.setName(r.getRefDoctor().getName());
+        }
+
+        RegistrationResponse res = new RegistrationResponse();
+        res.setId(r.getId());
+        res.setRegNo(r.getRegNo());
+        res.setPatient(pi);
+        res.setRefDoctor(rdi);
+        res.setPatientType(r.getPatientType());
+        res.setCenter(r.getCenter());
+        res.setPaymentType(r.getPaymentType());
+        res.setTotalAmount(r.getTotalAmount());
+        res.setOtherCharges(r.getOtherCharges());
+        res.setDiscountAmount(r.getDiscountAmount());
+        res.setDiscountType(r.getDiscountType());
+        res.setNetAmount(r.getNetAmount());
+        res.setPaidAmount(r.getPaidAmount());
+        res.setBalanceAmount(r.getBalanceAmount());
+        res.setRemarks(r.getRemarks());
+        res.setNotifyOnLab(r.getNotifyOnLab());
+        res.setNotifyEmail(r.getNotifyEmail());
+        res.setNotifyWhatsapp(r.getNotifyWhatsapp());
+        res.setIsEmergency(r.getIsEmergency());
+        res.setStatus(r.getStatus().name());
+        res.setTests(testInfos);
+        res.setCreatedAt(r.getCreatedAt());
+        res.setCreatedBy(r.getCreatedBy());
+        return res;
     }
 }
