@@ -1,10 +1,21 @@
-# Ignore database and temp files
-*.sql
-*.db
-postgres_data/
-*.log
+# Maven build output
+backend/target/
+*.class
+*.jar
+*.war
 
-# Ignore IDE files (optional)
-*.iml
+# Nested git repos
+LIMS_YES/
+
+# IDE
 .idea/
+*.iml
 .vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+*.env
+.env
