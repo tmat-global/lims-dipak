@@ -1,7 +1,10 @@
-backend/target/
-*.class
-.idea/
+# Ignore database and temp files
+*.sql
+*.db
+postgres_data/
+*.log
+
+# Ignore IDE files (optional)
 *.iml
+.idea/
 .vscode/
-.DS_Store
-backend/uploads/
