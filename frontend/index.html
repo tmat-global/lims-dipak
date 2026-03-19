@@ -790,11 +790,21 @@ function renderPSRows(list){
     <td style="font-weight:500;color:#1d4ed8;cursor:pointer" onclick="navigate('patient-clinical-history',{id:${p.id}})">${p.name}</td>
     <td>${p.gender}</td><td>${p.age} ${p.ageUnit}</td>
     <td style="font-size:11px">${p.refDoc}</td><td>${p.center}</td>
-    <td class="trunc">${p.tests}</td><td>${badge(p.status||'Reg')}</td>
+    <td class="trunc">${p.tests}</td>
+    <td><button class="btn btn-outline btn-xs" onclick="changePatientStatus(${p.id})">${p.status||'Reg'}</button></td>
     <td class="text-right">₹${fmt(p.charges)}</td>
     <td class="text-right">₹${fmt(p.balance||0)}</td>
     <td>${p.mobile}</td>
   </tr>`).join('');
+}
+
+function changePatientStatus(id){
+  const statuses=['Reg','SamCollect','SamAccept','SamReject','Tested','Authorized','Completed','Dispatch'];
+  const p=patients.find(x=>x.id===id);
+  if(!p) return;
+  const idx=statuses.indexOf(p.status||'Reg');
+  p.status=statuses[(idx+1)%statuses.length];
+  filterPS();
 }
 
 function filterPS(){
