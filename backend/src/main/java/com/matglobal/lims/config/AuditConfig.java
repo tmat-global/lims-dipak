@@ -15,10 +15,13 @@ public class AuditConfig {
     public AuditorAware<String> auditorProvider() {
         return () -> {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
-                return Optional.of(auth.getName());
+
+            if (auth != null && auth.isAuthenticated()
+                    && !"anonymousUser".equals(auth.getPrincipal())) {
+                return Optional.ofNullable(auth.getName());
             }
-            return Optional.of("system");
+
+            return Optional.of("SYSTEM");
         };
     }
 }

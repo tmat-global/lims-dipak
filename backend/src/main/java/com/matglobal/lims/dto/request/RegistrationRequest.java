@@ -1,8 +1,8 @@
 package com.matglobal.lims.dto.request;
 
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.Data;
+
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -10,31 +10,34 @@ import java.util.List;
 public class RegistrationRequest {
 
     @NotNull(message = "Patient ID is required")
-    Long patientId;
+    private Long patientId;
 
-    Long refDoctorId;
+    private Long refDoctorId;
 
-    @NotBlank String patientType; // OPD, IPD, Corporate
-    String center;
-    String paymentType;
+    @NotBlank(message = "Patient type is required")
+    private String patientType; // OPD, IPD, Corporate
 
-    BigDecimal otherCharges;
-    BigDecimal discountAmount;
-    String discountType; // Amt, Per%
-    BigDecimal paidAmount;
-    String remarks;
+    private String center;
+    private String paymentType;
 
-    Boolean notifyOnLab;
-    Boolean notifyEmail;
-    Boolean notifyWhatsapp;
-    Boolean isEmergency;
+    @DecimalMin(value = "0.0", inclusive = true)
+    private BigDecimal otherCharges;
+
+    @DecimalMin(value = "0.0", inclusive = true)
+    private BigDecimal discountAmount;
+
+    private String discountType; // Amt, Per%
+
+    @DecimalMin(value = "0.0", inclusive = true)
+    private BigDecimal paidAmount;
+
+    private String remarks;
+
+    private Boolean notifyOnLab = false;
+    private Boolean notifyEmail = false;
+    private Boolean notifyWhatsapp = false;
+    private Boolean isEmergency = false;
 
     @NotEmpty(message = "At least one test is required")
-    List<Long> testIds;
-
-    @Data
-    public static class RegistrationTestEntry {
-        @NotNull Long testId;
-        BigDecimal clientRate; // optional override
-    }
+    private List<Long> testIds;
 }

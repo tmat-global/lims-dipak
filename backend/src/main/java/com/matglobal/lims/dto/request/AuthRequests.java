@@ -2,33 +2,54 @@ package com.matglobal.lims.dto.request;
 
 import jakarta.validation.constraints.*;
 import lombok.Data;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
 
-// ── AUTH ──────────────────────────────────────────────────────────────
 public class AuthRequests {
 
     @Data
     public static class LoginRequest {
-        @NotBlank String username;
-        @NotBlank String password;
+        @NotBlank(message = "Username is required")
+        private String username;
+
+        @NotBlank(message = "Password is required")
+        private String password;
     }
 
     @Data
     public static class RegisterUserRequest {
-        @NotBlank @Size(min=3,max=80) String username;
-        @NotBlank @Size(min=6) String password;
-        @NotBlank String firstName;
-        @NotBlank String lastName;
-        @NotBlank @Email String email;
-        String mobile;
-        @NotBlank String role; // ADMIN, DOCTOR, LAB_TECHNICIAN, RECEPTIONIST
+
+        @NotBlank(message = "Username is required")
+        @Size(min = 3, max = 80)
+        private String username;
+
+        @NotBlank(message = "Password is required")
+        @Size(min = 6, message = "Password must be at least 6 characters")
+        private String password;
+
+        @NotBlank(message = "First name is required")
+        private String firstName;
+
+        @NotBlank(message = "Last name is required")
+        private String lastName;
+
+        @NotBlank(message = "Email is required")
+        @Email(message = "Invalid email format")
+        private String email;
+
+        @Pattern(regexp = "^[0-9+\\-\\s]*$", message = "Invalid mobile number")
+        private String mobile;
+
+        @NotBlank(message = "Role is required")
+        private String role; // ADMIN, DOCTOR, LAB_TECHNICIAN, RECEPTIONIST
     }
 
     @Data
     public static class ChangePasswordRequest {
-        @NotBlank String currentPassword;
-        @NotBlank @Size(min=6) String newPassword;
+
+        @NotBlank(message = "Current password is required")
+        private String currentPassword;
+
+        @NotBlank(message = "New password is required")
+        @Size(min = 6, message = "Password must be at least 6 characters")
+        private String newPassword;
     }
 }

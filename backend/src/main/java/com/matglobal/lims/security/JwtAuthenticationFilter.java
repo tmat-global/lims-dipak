@@ -11,32 +11,67 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
+
 import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
     private final JwtTokenProvider jwtTokenProvider;
     private final UserDetailsService userDetailsService;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest req,
+            HttpServletResponse res,
+            FilterChain chain)
+            throws ServletException, IOException {
+
+        String path = req.getServletPath();
+
+        // ✅ IMPORTANT: Skip JWT for public endpoints
+        if (path.startsWith("/api") ||
+                path.startsWith("/auth") ||
+                path.startsWith("/swagger-ui") ||
+                path.startsWith("/v3/api-docs") ||
+                path.startsWith("/actuator")) {
+
+            chain.doFilter(req, res);
+            return;
+        }
+
         try {
             String token = resolveToken(req);
+
             if (token != null && jwtTokenProvider.validateToken(token)) {
                 String username = jwtTokenProvider.getUsernameFromToken(token);
-                UserDetails ud = userDetailsService.loadUserByUsername(username);
-                var auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
+
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                        userDetails,
+                        null,
+                        userDetails.getAuthorities());
+
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(req));
+
                 SecurityContextHolder.getContext().setAuthentication(auth);
             }
-        } catch (Exception e) { log.error("Auth filter error: {}", e.getMessage()); }
+
+        } catch (Exception e) {
+            log.error("Auth filter error: {}", e.getMessage());
+        }
+
         chain.doFilter(req, res);
     }
 
     private String resolveToken(HttpServletRequest req) {
-        String b = req.getHeader("Authorization");
-        return (StringUtils.hasText(b) && b.startsWith("Bearer ")) ? b.substring(7) : null;
+        String bearer = req.getHeader("Authorization");
+
+        if (StringUtils.hasText(bearer) && bearer.startsWith("Bearer ")) {
+            return bearer.substring(7);
+        }
+        return null;
     }
 }
