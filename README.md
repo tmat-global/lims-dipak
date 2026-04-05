@@ -160,4 +160,4 @@ To wire up real API calls, replace the mock save functions with `fetch()` calls 
 
 ---
 
-© 2024 MAT Global · Laboratory Information System
+© 2026 T-MAT Global · Laboratory Information System
