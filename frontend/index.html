@@ -1946,18 +1946,20 @@ async function doLogin() {
     function clearAuth() { setToken(''); currentUser = { username: '', fullName: '', roles: [] }; }
     function apiBase() { return 'http://localhost:8081/api'; }
 
+    // Placeholder — overridden by the integration patch below
     async function apiFetch(path, opts = {}) {
-  const token = authToken || localStorage.getItem('lis_token') || '';
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    ...(opts.headers || {})
-  };
-try {
-        const res = await apiFetch('/auth/login', { method: 'POST', body: JSON.stringify({ username: u, password: p }) });
-        if (res && res.success) { setToken(res.data?.token || ''); setCurrentUserFromAuth(res); launchApp(); return; }
-        showToast(res?.message || 'Login failed', 'error');
-      } catch (e) { showToast('Invalid username or password', 'error'); }
+      const token = authToken || localStorage.getItem('lis_token') || '';
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        ...(opts.headers || {})
+      };
+      try {
+        const res = await fetch('http://localhost:8081' + path, { ...opts, headers });
+        if (res.status === 401) { clearAuth(); return null; }
+        if (!res.ok) { return null; }
+        return await res.json();
+      } catch (e) { return null; }
     }
 
     function setCurrentUserFromAuth(resp) {
@@ -2141,9 +2143,8 @@ try {
       if (total <= 1) return '';
       return `<div class="pagination">${cur > 1 ? `<button class="pg-btn">‹ Prev</button>` : ''}${Array.from({ length: Math.min(total, 8) }, (_, i) => `<button class="pg-btn${i + 1 === cur ? ' active' : ''}">${i + 1}</button>`).join('')}${cur < total ? `<button class="pg-btn">Next ›</button>` : ''}</div>`;
     }
-    async function loadPatients() {
-      try { const res = await apiFetch('/patients'); if (res && res.success) patients = res.data || []; } catch (e) { }
-    }
+    // loadPatients is fully implemented in the integration patch below
+    async function loadPatients() { /* overridden by integration patch */ }
 
     // ════════════════════════════════════════════════════════
     //  DASHBOARD
@@ -5592,7 +5593,7 @@ async function loadPatients() {
 // 3. Load next registration number from backend
 async function loadNextRegNum() {
   try {
-    const res = await apiFetch('/api/v1/patients/next-reg-no');
+    const res = await apiFetch('/api/v1/registrations/next-reg-no');
     if (res && res.success && res.data) {
       regNextNum = parseInt(res.data) || regNextNum;
       console.log('✅ Next reg number from DB:', regNextNum);
@@ -5697,11 +5698,15 @@ function saveRegistration() {
           testIds: selectedTests
             .map(t => t.id)
             .filter(id => typeof id === 'number' && id < 100000),
-          totalCharges: total,
-          paid, discount: discAmt, balance,
-          paymentMode: payMode,
-          center: rec.center,
-          refDoctorId: backendPayload.refDoctorId
+          patientType: rec.center || 'OPD',
+          center: rec.center || 'OPD',
+          paymentType: payMode,
+          paidAmount: paid,
+          discountAmount: discAmt,
+          discountType: discType === 'Pct' ? 'Per%' : 'Amt',
+          otherCharges: 0,
+          refDoctorId: backendPayload.refDoctorId,
+          remarks: document.getElementById('reg-remarks')?.value?.trim() || ''
         };
 
         apiFetch('/api/v1/registrations', {
@@ -5869,8 +5874,60 @@ function pbSaveBill(patientId, printAfter = false) {
   navigate('bill-desk');
 }
 
-// 9. Override launchApp to load DB data on startup
-const _origLaunchApp = launchApp;
+// 9. Load referring doctors from backend
+async function loadRefDoctors() {
+  try {
+    const res = await apiFetch('/api/v1/ref-doctors');
+    if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+      refDoctors = res.data.map(d => ({
+        id: d.id,
+        code: d.code || '',
+        name: d.name || '',
+        mobile: d.mobile || '',
+        email: d.email || '',
+        address: d.address || '',
+        city: d.city || '',
+        patientType: d.patientType || 'OPD',
+        rateType: d.rateType || 'MRP'
+      }));
+      console.log('✅ Loaded', refDoctors.length, 'referring doctors from DB');
+    }
+  } catch (e) {
+    console.warn('loadRefDoctors error:', e);
+  }
+}
+
+// 10. Load test catalog from backend
+async function loadTests() {
+  try {
+    const res = await apiFetch('/api/v1/tests');
+    if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+      testCatalog = res.data.map(t => ({
+        id: t.id,
+        code: t.code || '',
+        shortCode: t.shortCode || t.code || '',
+        name: t.name || '',
+        type: t.type || 'Single',
+        dept: t.department || t.dept || 'Biochemistry',
+        sampleType: t.sampleType || 'Blood',
+        rate: parseFloat(t.rate) || 0,
+        tat: t.turnaroundHours || 24,
+        description: t.description || '',
+        parameters: t.parameters || [],
+        ranges: t.ranges || [],
+        packageTests: [],
+        formula: t.formula || '',
+        reportNotes: t.reportNotes || '',
+        testConfig: t.testConfig || {}
+      }));
+      console.log('✅ Loaded', testCatalog.length, 'tests from DB');
+    }
+  } catch (e) {
+    console.warn('loadTests error:', e);
+  }
+}
+
+// 11. Override launchApp to load all DB data on startup
 function launchApp() {
   document.getElementById('login-page').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
@@ -5878,16 +5935,15 @@ function launchApp() {
   document.getElementById('sb-av').textContent = (currentUser.fullName || 'A').charAt(0).toUpperCase();
   document.getElementById('sb-urole').textContent = currentUser.roles?.[0] || 'ADMIN';
   buildSidebar();
-  // Load DB data then navigate
-  Promise.all([loadPatients(), loadNextRegNum()])
+  // Load all DB data then navigate to dashboard
+  Promise.all([loadPatients(), loadNextRegNum(), loadRefDoctors(), loadTests()])
     .then(() => {
       navigate('dashboard');
-      console.log('✅ App loaded with DB data');
     })
     .catch(() => navigate('dashboard'));
 }
 
-console.log('✅ Integration Patch v3 loaded');
+console.log('✅ Integration Patch v4 loaded');
   </script>
 </body>
 
