@@ -1,163 +1,249 @@
-# MAT Global — Laboratory Information System
+# T-MAT Global LIMS — Deployment & Setup Guide
 
-## Project Structure
-```
-mat-global-lims/
-├── frontend/
-│   └── index.html          ← Single-file web app (open in browser, no build needed)
-└── backend/
-    ├── pom.xml
-    └── src/main/java/com/matglobal/lims/
-        ├── LimsApplication.java
-        ├── config/          SecurityConfig, AuditConfig, DataBootstrap
-        ├── controller/      Auth, Patient, Registration, Test, RefDoctor, User, Dashboard
-        ├── dto/             request/ + response/ DTOs
-        ├── entity/          Patient, Registration, RegistrationTest, Test, ReferringDoctor, User, Role, AuditLog
-        ├── exception/       ResourceNotFoundException, BusinessException, DuplicateResourceException, GlobalExceptionHandler
-        ├── repository/      All Spring Data JPA Repositories
-        ├── security/        JwtTokenProvider, JwtAuthenticationFilter, UserDetailsServiceImpl
-        └── service/impl/    AuthService, PatientService, RegistrationService, OtherServices
-```
+## System Requirements
+
+| Software | Version | Download |
+|----------|---------|----------|
+| Java (JDK) | 21 or higher | https://adoptium.net |
+| Apache Maven | 3.9+ | https://maven.apache.org |
+| Microsoft SQL Server | 2019+ (Express edition is sufficient) | https://www.microsoft.com/en-us/sql-server/sql-server-downloads |
+| SQL Server Management Studio (SSMS) | Any recent version | https://learn.microsoft.com/en-us/sql/ssms/download-sql-server-management-studio-ssms |
+| A modern web browser | Chrome / Edge / Firefox | — |
 
 ---
 
-## Frontend — Quick Start
+## Step 1 — Install & Configure SQL Server
 
-1. Open `frontend/index.html` directly in your browser (no server needed)
-2. Login: `admin` / `admin123`
-3. All data is in-memory — refresh resets it
+1. Install **SQL Server Express** (free edition).
+2. During installation, note your instance name (default: `SQLEXPRESS`).
+3. Enable **SQL Server Authentication** and set the `sa` password.
+4. Open **SQL Server Configuration Manager** → enable **TCP/IP** on port 1433.
+5. Restart the SQL Server service.
 
----
+### Create the Database
 
-## Backend — Setup & Run
+Open SSMS, connect to `localhost\SQLEXPRESS`, then run:
 
-### Prerequisites
-- Java 17+
-- Maven 3.8+
-- PostgreSQL 14+
-
-### 1. Create the Database
 ```sql
 CREATE DATABASE matglobal_lims;
-CREATE USER postgres WITH PASSWORD 'postgres';
-GRANT ALL PRIVILEGES ON DATABASE matglobal_lims TO postgres;
 ```
 
-### 2. Configure (if needed)
-Edit `src/main/resources/application.properties`:
+> The application will auto-create all tables on first startup via `schema.sql`.
+
+---
+
+## Step 2 — Configure the Application
+
+Open the file:
+
+```
+backend/src/main/resources/application.properties
+```
+
+Update these values to match your environment:
+
 ```properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/matglobal_lims
-spring.datasource.username=postgres
-spring.datasource.password=postgres
+# SQL Server connection
+spring.datasource.url=jdbc:sqlserver://localhost\\SQLEXPRESS;databaseName=matglobal_lims;encrypt=false;trustServerCertificate=true
+spring.datasource.username=sa
+spring.datasource.password=YOUR_SA_PASSWORD
+
+# Application port (default 8081 — change if in use)
+server.port=8081
 ```
 
-### 3. Build & Run
+> **Production tip:** Do not commit credentials to version control.
+> Use environment variables instead:
+> ```
+> SPRING_DATASOURCE_PASSWORD=your_password mvn spring-boot:run
+> ```
+
+---
+
+## Step 3 — Build the Backend
+
+Open a terminal in the project root directory (where the top-level `pom.xml` lives) and run:
+
+```bash
+# On Windows
+mvn clean package -DskipTests
+
+# On Linux / macOS
+./mvnw clean package -DskipTests
+```
+
+This produces:
+
+```
+backend/target/lims-backend-*.jar
+```
+
+---
+
+## Step 4 — Run the Backend
+
+```bash
+java -jar backend/target/lims-backend-*.jar
+```
+
+Or using Maven directly:
+
 ```bash
 cd backend
-mvn clean install -DskipTests
 mvn spring-boot:run
 ```
-Backend starts on: **http://localhost:8080/api**
 
-On first run, the system automatically seeds:
-- Admin user: `admin` / `admin123`
-- 20 default tests/packages
-- All roles
+Wait for the log line:
 
----
+```
+Started LimsApplication in X seconds
+```
 
-## API Reference
-
-### Auth
-| Method | URL | Body | Auth |
-|--------|-----|------|------|
-| POST | `/api/auth/login` | `{username, password}` | Public |
-| POST | `/api/auth/register` | `{username, password, firstName, lastName, email, role}` | Admin |
-
-### Patients
-| Method | URL | Description |
-|--------|-----|-------------|
-| POST | `/api/patients` | Create patient |
-| GET | `/api/patients/{id}` | Get by ID |
-| GET | `/api/patients/by-mobile/{mobile}` | Search by mobile |
-| GET | `/api/patients?name=&mobile=&page=0&size=20` | Search |
-| PUT | `/api/patients/{id}` | Update |
-
-### Registrations
-| Method | URL | Description |
-|--------|-----|-------------|
-| POST | `/api/registrations` | Create registration with tests |
-| GET | `/api/registrations/{id}` | Get by ID |
-| GET | `/api/registrations?from=&to=&patientName=&status=&page=0` | Search |
-| PATCH | `/api/registrations/{id}/status?status=SAMPLE_ACCEPTED` | Update status |
-
-**Status values:** `REGISTERED` → `SAMPLE_COLLECTED` → `SAMPLE_ACCEPTED` → `TESTED` → `AUTHORIZED` → `COMPLETED` → `DISPATCHED`
-
-### Tests
-| Method | URL | Description |
-|--------|-----|-------------|
-| GET | `/api/tests` | All active tests |
-| GET | `/api/tests/search?q=blood` | Search tests |
-| POST | `/api/tests` | Add test (Admin) |
-| PUT | `/api/tests/{id}` | Update (Admin) |
-| DELETE | `/api/tests/{id}` | Deactivate (Admin) |
-
-### Referring Doctors
-| Method | URL | Description |
-|--------|-----|-------------|
-| GET | `/api/ref-doctors` | All active doctors |
-| POST | `/api/ref-doctors` | Add doctor |
-| PUT | `/api/ref-doctors/{id}` | Update |
-| DELETE | `/api/ref-doctors/{id}` | Deactivate (Admin) |
-
-### Users (Admin only)
-| Method | URL |
-|--------|-----|
-| GET | `/api/users?page=0&size=20` |
-| GET | `/api/users/{id}` |
-| PUT | `/api/users/{id}` |
-| PATCH | `/api/users/{id}/toggle-active` |
-
-### Dashboard
-| Method | URL |
-|--------|-----|
-| GET | `/api/dashboard/stats` |
+The API is now available at: `http://localhost:8081/api`
 
 ---
 
-## Example Workflow
+## Step 5 — Open the Frontend
 
-```bash
-# 1. Login
-curl -X POST http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}'
-# → Returns { data: { token: "eyJ..." } }
+The frontend is a single HTML file — no build step required.
 
-# 2. Create Patient (use token from above)
-curl -X POST http://localhost:8080/api/patients \
-  -H "Authorization: Bearer eyJ..." \
-  -H "Content-Type: application/json" \
-  -d '{"name":"John Doe","gender":"Male","age":35,"ageUnit":"Years","mobile":"9876543210"}'
+**Option A — Served by the backend (recommended):**
+Open your browser and navigate to:
+```
+http://localhost:8081/app
+```
 
-# 3. Create Registration
-curl -X POST http://localhost:8080/api/registrations \
-  -H "Authorization: Bearer eyJ..." \
-  -H "Content-Type: application/json" \
-  -d '{"patientId":1,"patientType":"OPD","paymentType":"Cash","testIds":[1,2,3],"paidAmount":1200}'
+**Option B — Open the file directly:**
+```
+frontend/index.html
+```
+Open it in any browser (double-click or drag into browser).
 
-# 4. Update Status
-curl -X PATCH "http://localhost:8080/api/registrations/1/status?status=SAMPLE_ACCEPTED" \
-  -H "Authorization: Bearer eyJ..."
+---
+
+## Step 6 — First Login
+
+| Field | Value |
+|-------|-------|
+| Username | `admin` |
+| Password | `admin123` |
+
+> Change the admin password immediately after first login.
+
+---
+
+## Step 7 — Verify the System
+
+1. Log in — the status indicator in the bottom bar should show **Backend Online**.
+2. Go to **Front Desk → New Registration** and register a test patient.
+3. Open SSMS and verify a new row appears in `matglobal_lims.dbo.patients`.
+4. Insert a patient directly in SSMS:
+   ```sql
+   INSERT INTO patients (name, gender, age, age_unit, mobile, created_at, updated_at)
+   VALUES ('Test Patient', 'Male', 30, 'Years', '9876543210', GETDATE(), GETDATE());
+   ```
+5. Refresh the Patient Status screen in the UI — the new patient should appear.
+
+---
+
+## Folder Structure Reference
+
+```
+lims-dipak/
+├── backend/                  Spring Boot REST API (Java 21)
+│   ├── src/
+│   │   └── main/
+│   │       ├── java/         Application source code
+│   │       └── resources/
+│   │           ├── application.properties   Configuration
+│   │           └── schema.sql               Database DDL (auto-run)
+│   └── pom.xml
+├── frontend/
+│   └── index.html            Complete single-page application
+├── deployment/
+│   └── setup-guide.md        This file
+└── pom.xml                   Root Maven build file
 ```
 
 ---
 
-## Connect Frontend to Backend
+## API Endpoints Summary
 
-In `frontend/index.html`, the `apiBase()` function returns `http://localhost:8080/api`.
-To wire up real API calls, replace the mock save functions with `fetch()` calls to the endpoints above.
+All endpoints are prefixed with `/api` (context path).
+
+| Module | Base URL | Notes |
+|--------|----------|-------|
+| Auth | `/api/auth/login` | POST — returns JWT token |
+| Patients | `/api/v1/patients` | CRUD |
+| Registrations | `/api/v1/registrations` | CRUD + status update |
+| Tests | `/api/v1/tests` | CRUD (ADMIN only for mutations) |
+| Referring Doctors | `/api/v1/ref-doctors` | CRUD |
+| Dashboard | `/api/v1/dashboard/stats` | GET |
+| Users | `/api/v1/users` | ADMIN only |
+| Health | `/api/health` | GET — public |
 
 ---
 
-© 2026 T-MAT Global · Laboratory Information System
+## Troubleshooting
+
+### Backend won't start
+
+| Symptom | Fix |
+|---------|-----|
+| `Connection refused` to SQL Server | Ensure SQL Server is running and TCP/IP is enabled on port 1433 |
+| `Login failed for user 'sa'` | Check `spring.datasource.password` in application.properties |
+| Port 8081 already in use | Change `server.port` to 8082 or another free port; update the `apiBase()` in frontend/index.html to match |
+| Schema errors on startup | `continue-on-error=true` is set — check logs for details but startup will proceed |
+
+### Frontend shows "Offline / Demo"
+
+- Verify the backend is running on port 8081.
+- Check browser console for CORS or network errors.
+- Ensure `apiBase()` in `frontend/index.html` matches your backend port.
+
+### Data not appearing after SSMS insert
+
+- The frontend pulls fresh data on every page navigation.
+- Click on the menu item again to force a reload, or press F5 to refresh the app.
+
+---
+
+## Changing the Default Port
+
+1. In `backend/src/main/resources/application.properties` change:
+   ```properties
+   server.port=8082
+   ```
+2. In `frontend/index.html` find and update (there are two places):
+   ```javascript
+   function apiBase() { return 'http://localhost:8082/api'; }
+   // ...and in the integration patch:
+   const res = await fetch('http://localhost:8082' + path, ...)
+   ```
+
+---
+
+## Packaging for ZIP Delivery
+
+```bash
+# 1. Build the JAR
+mvn clean package -DskipTests
+
+# 2. Create delivery folder
+mkdir lims-delivery
+cp backend/target/lims-backend-*.jar lims-delivery/lims-backend.jar
+cp -r frontend/ lims-delivery/frontend/
+cp deployment/setup-guide.md lims-delivery/
+
+# 3. Zip it
+zip -r lims-delivery.zip lims-delivery/
+```
+
+The client runs the system with:
+```bash
+java -jar lims-backend.jar
+# Then opens: http://localhost:8081/app
+```
+
+DELL@DESKTOP-CA79A45 MINGW64 /d/lims-dipak-final/lims-dipak/deployment (main)
+$
