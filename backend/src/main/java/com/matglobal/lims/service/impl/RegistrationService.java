@@ -42,6 +42,14 @@ public class RegistrationService {
         return String.valueOf(regSequence.getAndIncrement());
     }
 
+    @Transactional(readOnly = true)
+    public String peekNextRegNo() {
+        if (regSequence == null) {
+            return String.valueOf(startNumber + registrationRepository.count());
+        }
+        return String.valueOf(regSequence.get());
+    }
+
     public RegistrationResponse create(RegistrationRequest req) {
         Patient patient = patientRepository.findById(req.getPatientId())
                 .orElseThrow(() -> new ResourceNotFoundException("Patient", req.getPatientId()));

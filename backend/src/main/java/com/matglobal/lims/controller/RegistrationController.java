@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 
 @RestController
-@RequestMapping("/api/v1/registrations")
+@RequestMapping("/v1/registrations")
 @RequiredArgsConstructor
 public class RegistrationController {
 
@@ -55,5 +55,10 @@ public class RegistrationController {
 
         return ResponseEntity.ok(ApiResponse.ok("Status updated",
                 registrationService.updateStatus(id, status)));
+    }
+
+    @GetMapping("/next-reg-no")
+    public ResponseEntity<ApiResponse<String>> nextRegNo() {
+        return ResponseEntity.ok(ApiResponse.ok(registrationService.peekNextRegNo()));
     }
 }

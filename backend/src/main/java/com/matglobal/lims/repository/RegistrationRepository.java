@@ -20,4 +20,8 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
     long countTodayRegistrations(@Param("startOfDay") LocalDateTime startOfDay);
     @Query("SELECT COALESCE(SUM(r.paidAmount), 0) FROM Registration r WHERE r.createdAt >= :startOfDay")
     BigDecimal sumTodayCollection(@Param("startOfDay") LocalDateTime startOfDay);
+    @Query("SELECT COUNT(r) FROM Registration r WHERE r.status = :status AND r.createdAt >= :startOfDay")
+    long countTodayByStatus(@Param("status") Registration.RegistrationStatus status, @Param("startOfDay") LocalDateTime startOfDay);
+    @Query("SELECT COUNT(r) FROM Registration r WHERE r.status = :status")
+    long countByStatus(@Param("status") Registration.RegistrationStatus status);
 }

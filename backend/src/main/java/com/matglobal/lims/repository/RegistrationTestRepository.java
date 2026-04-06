@@ -13,4 +13,10 @@ public interface RegistrationTestRepository extends JpaRepository<RegistrationTe
     List<RegistrationTest> findByStatus(RegistrationTest.TestStatus status);
     @Query("SELECT rt FROM RegistrationTest rt WHERE rt.registration.id = :regId")
     List<RegistrationTest> findAllByRegistrationId(@Param("regId") Long regId);
+
+    @Query("SELECT COUNT(rt) FROM RegistrationTest rt WHERE rt.status = :status")
+    long countByStatus(@Param("status") RegistrationTest.TestStatus status);
+
+    @Query("SELECT COUNT(rt) FROM RegistrationTest rt WHERE rt.status = :status AND rt.registration.createdAt >= :startOfDay")
+    long countByStatusSince(@Param("status") RegistrationTest.TestStatus status, @Param("startOfDay") java.time.LocalDateTime startOfDay);
 }
