@@ -245,5 +245,6 @@ java -jar lims-backend.jar
 # Then opens: http://localhost:8081/app
 ```
 
-DELL@DESKTOP-CA79A45 MINGW64 /d/lims-dipak-final/lims-dipak/deployment (main)
-$
+---------------------------------------------------------------------------------------------------------------------
+# T-Mat Global Technologies Pvt. Ltd.
+# India
