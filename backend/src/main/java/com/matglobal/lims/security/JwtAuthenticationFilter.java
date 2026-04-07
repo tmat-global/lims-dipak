@@ -30,9 +30,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String path = req.getServletPath();
 
-        // ✅ IMPORTANT: Skip JWT for public endpoints
-        if (path.startsWith("/api") ||
-                path.startsWith("/auth") ||
+        // Skip JWT check for public/auth endpoints only
+        // NOTE: context-path is /api, so servlet paths here are relative to that
+        // e.g. actual URL /api/auth/login → servletPath = /auth/login
+        if (path.startsWith("/auth") ||
                 path.startsWith("/swagger-ui") ||
                 path.startsWith("/v3/api-docs") ||
                 path.startsWith("/actuator")) {
@@ -55,7 +56,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         userDetails.getAuthorities());
 
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(req));
-
                 SecurityContextHolder.getContext().setAuthentication(auth);
             }
 
@@ -68,7 +68,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private String resolveToken(HttpServletRequest req) {
         String bearer = req.getHeader("Authorization");
-
         if (StringUtils.hasText(bearer) && bearer.startsWith("Bearer ")) {
             return bearer.substring(7);
         }
