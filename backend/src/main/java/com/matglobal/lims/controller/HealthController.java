@@ -15,6 +15,6 @@ public class HealthController {
     public ResponseEntity<Map<String, String>> health() {
         return ResponseEntity.ok(Map.of(
                 "status", "UP",
-                "app", "MAT Global LIMS"));
+                "app", "T-MAT Global LIMS"));
     }
 }

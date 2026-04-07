@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════
--- MAT Global LIMS — FINAL CLEAN SCHEMA (MATCHED)
+-- T-MAT Global LIMS — FINAL CLEAN SCHEMA (MATCHED)
 -- ═══════════════════════════════════════════════════════
 
 -- ROLES

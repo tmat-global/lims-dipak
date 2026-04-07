@@ -15,8 +15,8 @@
     <groupId>com.matglobal</groupId>
     <artifactId>lims</artifactId>
     <version>1.0.0</version>
-    <name>MAT Global LIMS</name>
-    <description>MAT Global Laboratory Information Management System</description>
+    <name>T-MAT Global LIMS</name>
+    <description>T-MAT Global Laboratory Information Management System</description>
 
     <properties>
         <java.version>21</java.version>

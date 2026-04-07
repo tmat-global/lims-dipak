@@ -1,4 +1,4 @@
-# T-MAT Global LIMS — Deployment & Setup Guide
+# T-MAT Global LIMS — Laboratory Information Management System
 
 ## System Requirements
 
@@ -246,5 +246,5 @@ java -jar lims-backend.jar
 ```
 
 ---------------------------------------------------------------------------------------------------------------------
-# T-Mat Global Technologies Pvt. Ltd.
+# T-MAT Global Technologies Pvt. Ltd.
 # India
