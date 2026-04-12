@@ -2888,7 +2888,7 @@ try {
     //  TEST MASTER MODULE
     // ════════════════════════════════════════════════════════
     function renderTestMaster() {
-      const tabs = [{ key: 'tests', label: '📋 Tests' }, { key: 'parameters', label: '⚙️ Parameters' }, { key: 'packages', label: '📦 Packages' }, { key: 'shortcuts', label: '⚡ Shortcuts' }, { key: 'formulas', label: '🔢 Formulas' }, { key: 'ranges', label: '📊 Ranges' }, { key: 'reports', label: '📄 Report Notes' }];
+      const tabs = [{ key: 'tests', label: '📋 Tests' }, { key: 'packages', label: '📦 Packages' }, { key: 'shortcuts', label: '⚡ Shortcuts' }, { key: 'formulas', label: '🔢 Formulas' }, { key: 'ranges', label: '📊 Ranges' }, { key: 'reports', label: '📄 Report Notes' }];
       return `
     ${ph('Test Master Management', 'Configure tests, parameters, packages, shortcuts, formulas and reference ranges.')}
     ${bc('Home', 'Master Configuration', 'Test Master')}
@@ -3638,7 +3638,7 @@ try {
   ${bc('Home', 'Master Configuration', 'Test Charges')}
   <div class="card">
     <div class="tbl-wrap">
-      <table><thead><tr><th>#</th><th>Code</th><th>Test Name</th><th>Type</th><th class="text-right">MRP (₹)</th><th class="text-right">Lab Charge (₹)</th><th class="text-right">Doctor Share (₹)</th><th>Save</th></tr></thead>
+      <table><thead><tr><th>#</th><th>Code</th><th>Test Name</th><th>Type</th><th class="text-right">MRP (₹)</th><th class="text-right">Lab Charge (₹)</th><th>Save</th></tr></thead>
         <tbody>${testCatalog.map((t, i) => `<tr>
           <td style="color:var(--text-faint)">${i + 1}</td>
           <td class="col-mono">${t.code}</td>
@@ -3646,7 +3646,7 @@ try {
           <td><span class="tag">${t.type || 'Test'}</span></td>
           <td class="text-right mono">₹${fmt(t.rate)}</td>
           <td class="text-right"><input class="range-inp" type="number" value="${t.labCharge || t.rate}" style="width:90px"/></td>
-          <td class="text-right"><input class="range-inp" type="number" value="${t.drShare || 0}" style="width:90px"/></td>
+          
           <td><button class="btn btn-success btn-xs" onclick="showToast('Saved!','success')">Save</button></td>
         </tr>`).join('')}</tbody>
       </table>
@@ -4004,7 +4004,7 @@ try {
 
     // ── Global data buses (declared in state block above) ──
     // ── Override saveRegistration to wire all downstream modules ──
-    function saveRegistration() {
+    async function saveRegistration() {
       const name = document.getElementById('reg-name')?.value.trim();
       if (!name) { showToast('Patient name is required', 'error'); return; }
       if (!selectedTests.length) { showToast('Please add at least one test', 'error'); return; }
@@ -4080,7 +4080,63 @@ try {
         tests: selectedTests.map(t => ({ code: t.code, name: t.name, resultStatus: 'pending' })),
       });
 
-      showToast(`Registration successful — Reg. No.: ${rec.regNo}`, 'success');
+      // ── Save to backend ──
+      showToast('Saving to database...', 'info');
+      try {
+        const token = authToken || localStorage.getItem('lis_token') || '';
+        const headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
+
+        // 1. Save patient
+        const patientPayload = {
+          name: rec.name, gender: rec.gender,
+          age: parseInt(rec.age) || 0, ageUnit: rec.ageUnit,
+          mobile: rec.mobile, email: rec.email, address: rec.address,
+          remarks: document.getElementById('reg-remarks')?.value?.trim() || ''
+        };
+        const patRes = await fetch('http://localhost:8081/api/v1/patients', {
+          method: 'POST', headers, body: JSON.stringify(patientPayload)
+        });
+        const patData = await patRes.json();
+
+        if (patData && patData.success && patData.data) {
+          const dbPatientId = patData.data.id;
+          rec.id = dbPatientId;
+
+          // 2. Save registration
+          const refDocId = document.getElementById('reg-refdoc')?.value;
+          const regPayload = {
+            patientId: dbPatientId,
+            testIds: selectedTests.map(t => t.id).filter(id => Number.isInteger(id) && id < 100),
+            patientType: rec.center,
+            center: rec.center,
+            paymentType: payMode,
+            totalAmount: total,
+            discountAmount: discAmt,
+            discountType: discType === 'Pct' ? 'Per%' : 'Amt',
+            netAmount: afterDisc,
+            paidAmount: paid,
+            balanceAmount: balance,
+            refDoctorId: refDocId ? parseInt(refDocId) : null,
+            notifyOnLab: true, notifyEmail: false,
+            notifyWhatsapp: false, isEmergency: false
+          };
+          const regRes = await fetch('http://localhost:8081/api/v1/registrations', {
+            method: 'POST', headers, body: JSON.stringify(regPayload)
+          });
+          const regData = await regRes.json();
+          if (regData && regData.success) {
+            rec.regNo = regData.data.regNo || rec.regNo;
+            showToast('Registration saved to database — Reg. No.: ' + rec.regNo, 'success');
+          } else {
+            showToast('Patient saved, registration pending — Reg. No.: ' + rec.regNo, 'warn');
+          }
+        } else {
+          showToast('Registration successful (local) — Reg. No.: ' + rec.regNo, 'warn');
+        }
+      } catch(e) {
+        console.error('Save error:', e);
+        showToast('Registration successful (local) — Reg. No.: ' + rec.regNo, 'warn');
+      }
       navigate('new-registration');
     }
 

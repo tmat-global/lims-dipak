@@ -91,7 +91,7 @@ public class SecurityConfig {
                                 "/assets/**",
                                 "/static/**")
                         .permitAll()
-                        .requestMatchers("/health", "/actuator/**").permitAll()
+                        .requestMatchers("/health", "/actuator/**", "/v1/reports/**").permitAll()
                         .requestMatchers(
                                 "/auth/**",
                                 "/auth/login",

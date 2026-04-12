@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="patient_report" pageWidth="595" pageHeight="842"
+              columnWidth="535" leftMargin="30" rightMargin="30"
+              topMargin="20" bottomMargin="20">
+
+    <parameter name="patientName" class="java.lang.String"/>
+    <parameter name="regNo" class="java.lang.String"/>
+    <parameter name="age" class="java.lang.String"/>
+    <parameter name="gender" class="java.lang.String"/>
+    <parameter name="mobile" class="java.lang.String"/>
+    <parameter name="refDoctor" class="java.lang.String"/>
+    <parameter name="center" class="java.lang.String"/>
+    <parameter name="reportDate" class="java.lang.String"/>
+
+    <field name="testName" class="java.lang.String"/>
+    <field name="result" class="java.lang.String"/>
+    <field name="unit" class="java.lang.String"/>
+    <field name="referenceRange" class="java.lang.String"/>
+    <field name="status" class="java.lang.String"/>
+
+    <title>
+        <band height="120">
+            <!-- Header -->
+            <rectangle>
+                <reportElement x="0" y="0" width="535" height="50" backcolor="#0D2137"/>
+                <graphicElement>
+                    <pen lineWidth="0"/>
+                </graphicElement>
+            </rectangle>
+            <staticText>
+                <reportElement x="0" y="5" width="535" height="25" forecolor="#FFFFFF"/>
+                <textElement textAlignment="Center">
+                    <font size="16" isBold="true" fontName="DejaVu Sans"/>
+                </textElement>
+                <text><![CDATA[AwaleMediSoft Laboratory]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="0" y="28" width="535" height="16" forecolor="#A8CDE6"/>
+                <textElement textAlignment="Center">
+                    <font size="9" fontName="DejaVu Sans"/>
+                </textElement>
+                <text><![CDATA[Laboratory Information System — Test Report]]></text>
+            </staticText>
+
+            <!-- Patient Info Box -->
+            <rectangle>
+                <reportElement x="0" y="55" width="535" height="60" backcolor="#F0F7FC"/>
+                <graphicElement>
+                    <pen lineWidth="0.5" lineColor="#B8D0E4"/>
+                </graphicElement>
+            </rectangle>
+            <textField>
+                <reportElement x="5" y="58" width="260" height="14"/>
+                <textElement><font size="9" isBold="true" fontName="DejaVu Sans"/></textElement>
+                <textFieldExpression><![CDATA["Patient: " + $P{patientName}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="270" y="58" width="260" height="14"/>
+                <textElement><font size="9" fontName="DejaVu Sans"/></textElement>
+                <textFieldExpression><![CDATA["Reg No: " + $P{regNo}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="5" y="74" width="260" height="14"/>
+                <textElement><font size="9" fontName="DejaVu Sans"/></textElement>
+                <textFieldExpression><![CDATA["Age/Gender: " + $P{age} + " / " + $P{gender}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="270" y="74" width="260" height="14"/>
+                <textElement><font size="9" fontName="DejaVu Sans"/></textElement>
+                <textFieldExpression><![CDATA["Mobile: " + $P{mobile}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="5" y="90" width="260" height="14"/>
+                <textElement><font size="9" fontName="DejaVu Sans"/></textElement>
+                <textFieldExpression><![CDATA["Ref Doctor: " + $P{refDoctor}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="270" y="90" width="260" height="14"/>
+                <textElement><font size="9" fontName="DejaVu Sans"/></textElement>
+                <textFieldExpression><![CDATA["Date: " + $P{reportDate}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="24">
+            <rectangle>
+                <reportElement x="0" y="0" width="535" height="24" backcolor="#122D4A"/>
+                <graphicElement><pen lineWidth="0"/></graphicElement>
+            </rectangle>
+            <staticText>
+                <reportElement x="5" y="5" width="200" height="14" forecolor="#FFFFFF"/>
+                <textElement><font size="9" isBold="true" fontName="DejaVu Sans"/></textElement>
+                <text><![CDATA[TEST NAME]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="210" y="5" width="80" height="14" forecolor="#FFFFFF"/>
+                <textElement><font size="9" isBold="true" fontName="DejaVu Sans"/></textElement>
+                <text><![CDATA[RESULT]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="295" y="5" width="60" height="14" forecolor="#FFFFFF"/>
+                <textElement><font size="9" isBold="true" fontName="DejaVu Sans"/></textElement>
+                <text><![CDATA[UNIT]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="360" y="5" width="120" height="14" forecolor="#FFFFFF"/>
+                <textElement><font size="9" isBold="true" fontName="DejaVu Sans"/></textElement>
+                <text><![CDATA[REFERENCE RANGE]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="485" y="5" width="50" height="14" forecolor="#FFFFFF"/>
+                <textElement><font size="9" isBold="true" fontName="DejaVu Sans"/></textElement>
+                <text><![CDATA[STATUS]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="20">
+            <textField>
+                <reportElement x="5" y="3" width="200" height="14"/>
+                <textElement><font size="9" fontName="DejaVu Sans"/></textElement>
+                <textFieldExpression><![CDATA[$F{testName}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="210" y="3" width="80" height="14"/>
+                <textElement><font size="9" isBold="true" fontName="DejaVu Sans"/></textElement>
+                <textFieldExpression><![CDATA[$F{result} != null ? $F{result} : "Pending"]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="295" y="3" width="60" height="14"/>
+                <textElement><font size="9" fontName="DejaVu Sans"/></textElement>
+                <textFieldExpression><![CDATA[$F{unit} != null ? $F{unit} : ""]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="360" y="3" width="120" height="14"/>
+                <textElement><font size="9" fontName="DejaVu Sans"/></textElement>
+                <textFieldExpression><![CDATA[$F{referenceRange} != null ? $F{referenceRange} : ""]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="485" y="3" width="50" height="14"/>
+                <textElement><font size="9" fontName="DejaVu Sans"/></textElement>
+                <textFieldExpression><![CDATA[$F{status}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="30">
+            <line>
+                <reportElement x="0" y="0" width="535" height="1" forecolor="#B8D0E4"/>
+            </line>
+            <staticText>
+                <reportElement x="0" y="5" width="535" height="14" forecolor="#5A7A9A"/>
+                <textElement textAlignment="Center">
+                    <font size="8" fontName="DejaVu Sans"/>
+                </textElement>
+                <text><![CDATA[AwaleMediSoft Laboratory Information System — Confidential Medical Report]]></text>
+            </staticText>
+        </band>
+    </pageFooter>
+</jasperReport>
