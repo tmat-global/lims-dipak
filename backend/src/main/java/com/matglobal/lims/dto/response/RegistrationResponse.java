@@ -51,6 +51,9 @@ public class RegistrationResponse {
         private String ageUnit;
         private String mobile;
         private String email;
+        private String address;
+        private String salutation;
+        private java.time.LocalDate dateOfBirth;
     }
 
     @Data
@@ -73,6 +76,8 @@ public class RegistrationResponse {
         private String name;
         private String type;
         private String status;
+        private String sampleType;
+        private String department;
         private BigDecimal rate;
         private BigDecimal clientRate;
     }

@@ -142,6 +142,8 @@ public class RegistrationService {
             ti.setRate(rt.getRate());
             ti.setClientRate(rt.getClientRate());
             ti.setStatus(rt.getStatus().name());
+            ti.setSampleType(rt.getTest().getSampleType());
+            ti.setDepartment(rt.getTest().getDepartment());
             return ti;
         }).collect(Collectors.toList());
 
@@ -153,6 +155,9 @@ public class RegistrationService {
         pi.setAgeUnit(r.getPatient().getAgeUnit());
         pi.setMobile(r.getPatient().getMobile());
         pi.setEmail(r.getPatient().getEmail());
+        pi.setAddress(r.getPatient().getAddress());
+        pi.setSalutation(r.getPatient().getSalutation());
+        pi.setDateOfBirth(r.getPatient().getDateOfBirth());
 
         RegistrationResponse.RefDoctorInfo rdi = null;
         if (r.getRefDoctor() != null) {

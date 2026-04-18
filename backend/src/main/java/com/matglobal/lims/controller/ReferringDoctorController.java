@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/v1/ref-doctors")
+@RequestMapping("/v1/referring-doctors")
 @RequiredArgsConstructor
 public class ReferringDoctorController {
 

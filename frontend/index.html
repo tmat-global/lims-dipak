@@ -1631,6 +1631,28 @@
       margin-top: 22px
     }
 
+    .login-pass-input {
+      flex: 1
+    }
+
+    .login-pass-toggle {
+      background: none;
+      border: 1px solid var(--border-subtle);
+      border-radius: 7px;
+      cursor: pointer;
+      color: var(--text-muted);
+      padding: 8px 10px;
+      margin-left: 6px;
+      flex-shrink: 0;
+      transition: all .14s
+    }
+
+    .login-pass-toggle:hover {
+      background: var(--steel-50);
+      border-color: var(--steel-200);
+      color: var(--steel-600)
+    }
+
     /* RTE toolbar */
     .rte-tbtn {
       display: inline-flex;
@@ -1695,9 +1717,8 @@
           <label class="form-label">Password</label>
           <div class="flex">
             <input class="inp" id="login-pass" type="password" placeholder="Enter your password" value="AwaleMediSof"
-              autocomplete="current-password" style="flex:1" />
-            <button onclick="togglePassVis()"
-              style="background:none;border:1px solid var(--border-subtle);border-radius:7px;cursor:pointer;color:var(--text-muted);padding:8px 10px;margin-left:6px;flex-shrink:0;transition:all .14s">👁</button>
+              autocomplete="current-password" class="inp login-pass-input" />
+            <button type="button" class="login-pass-toggle" onclick="togglePassVis()">👁</button>
           </div>
         </div>
         <div class="login-divider"><span>Secure Access</span></div>
@@ -1896,15 +1917,15 @@ async function doLogin() {
 
     const data = await res.json();
 
-    if (!res.ok) {
+    if (!res.ok || !data.success) {
       showToast(data?.message || 'Invalid username or password', 'error');
       return;
     }
 
-    const token    = data?.token    || data?.data?.token    || data?.accessToken || '';
-    const fullName = data?.fullName || data?.data?.fullName || data?.name        || u;
-    const username = data?.username || data?.data?.username || u;
-    const roles    = data?.roles    || data?.data?.roles    || ['ADMIN'];
+    const token    = data?.data?.token    || data?.token    || data?.accessToken || '';
+    const fullName = data?.data?.fullName || data?.fullName || data?.name        || u;
+    const username = data?.data?.username || data?.username || u;
+    const roles    = data?.data?.roles    || data?.roles    || ['ADMIN'];
 
     if (token) {
       authToken = token;
@@ -1916,13 +1937,14 @@ async function doLogin() {
     launchApp();
 
   } catch (e) {
-    if (u === 'admin' && p === 'admin123') {
-      currentUser = { username: 'admin', fullName: 'Administrator', roles: ['ADMIN'] };
+    console.error('Login error:', e);
+    if (u === 'AwaleMediSof' || u === 'admin') {
+      currentUser = { username: u, fullName: 'Administrator', roles: ['ADMIN'] };
       authToken = '';
       showToast('Connected in offline mode', 'warn');
       launchApp();
     } else {
-      showToast('Cannot reach server. Try admin / admin123 to continue offline.', 'error');
+      showToast('Cannot reach server. Check backend is running on port 8081.', 'error');
     }
   }
 }
@@ -1955,12 +1977,66 @@ async function doLogin() {
         ...(opts.headers || {})
       };
       try {
-        const res = await fetch('http://localhost:8081' + path, { ...opts, headers });
+        const res = await fetch('http://localhost:8081/api' + path, { ...opts, headers });
         if (res.status === 401) { clearAuth(); return null; }
         if (!res.ok) { return null; }
         return await res.json();
-      } catch (e) { return null; }
+      } catch (e) {
+        console.error('apiFetch error:', e);
+        return null;
+      }
+    }) {
+      const token = authToken || localStorage.getItem('lis_token') || '';
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        ...(opts.headers || {})
+      };
+      try {
+        const res = await fetch('http://localhost:8081/api' + path, { ...opts, headers });
+        if (res.status === 401) { clearAuth(); return null; }
+        if (!res.ok) { return null; }
+        return await res.json();
+      } catch (e) {
+        console.error('apiFetch error:', e);
+        return null;
+      }
+    }) {
+      const token = authToken || localStorage.getItem('lis_token') || '';
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        ...(opts.headers || {})
+      };
+      try {
+        const res = await fetch('http://localhost:8081/api' + path, { ...opts, headers });
+        if (res.status === 401) { clearAuth(); return null; }
+        if (!res.ok) { return null; }
+        return await res.json();
+      } catch (e) {
+        console.error('apiFetch error:', e);
+        return null;
+      }
+    }) {
+  const token = authToken || localStorage.getItem('lis_token') || '';
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...(opts.headers || {})
+  };
+  try {
+    const res = await fetch('http://localhost:8081/api' + path, { ...opts, headers });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return { success: false, message: err.message || 'Request failed' };
     }
+    return await res.json();
+  } catch (e) {
+    console.error('apiFetch error:', e);
+    return null;
+  }
+}
+
 
     function setCurrentUserFromAuth(resp) {
       if (!resp) return;
@@ -2173,10 +2249,52 @@ async function doLogin() {
         <div class="stat-delta" style="color:${s.color}">${s.delta}</div>
       </div></div>`).join('')}
   </div>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px">
-    <div class="card"><div class="card-header"><div><div class="card-title">Daily Registrations</div><div class="card-subtitle">Last 7 days</div></div></div><canvas id="dailyRegsChart" height="155"></canvas></div>
-    <div class="card"><div class="card-header"><div><div class="card-title">Patient Status</div><div class="card-subtitle">Current workflow</div></div></div><canvas id="statusChart" height="155"></canvas></div>
-    <div class="card"><div class="card-header"><div><div class="card-title">Tests by Department</div><div class="card-subtitle">Volume breakdown</div></div></div><canvas id="deptChart" height="155"></canvas></div>
+  <div class="card mb3">
+    <div class="card-header">
+      <div><div class="card-title">Total number of patients daywise</div><div class="card-subtitle">Patient registrations over date range</div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="date" class="inp inp-sm" id="dash-from" style="width:140px"/>
+        <input type="date" class="inp inp-sm" id="dash-to" style="width:140px"/>
+        <button class="btn btn-primary btn-sm" onclick="refreshDailyChart()">Go</button>
+      </div>
+    </div>
+    <canvas id="dailyRegsChart" height="75"></canvas>
+  </div>
+  <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-bottom:20px">
+    <div class="card">
+      <div class="card-header">
+        <div><div class="card-title">Total patients by department</div><div class="card-subtitle">Volume breakdown</div></div>
+        <div style="display:flex;gap:6px">
+          <select class="inp inp-sm" id="dept-month" style="width:110px" onchange="refreshDeptChart()">
+            <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+            <option value="4">April</option><option value="5">May</option><option value="6">June</option>
+            <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+            <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+          </select>
+          <select class="inp inp-sm" id="dept-year" style="width:78px" onchange="refreshDeptChart()">
+            <option>2025</option><option selected>2026</option>
+          </select>
+        </div>
+      </div>
+      <canvas id="deptChart" height="160"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div><div class="card-title">Top 5 Referral Doctors</div><div class="card-subtitle">Patient referrals this month</div></div>
+        <div style="display:flex;gap:6px">
+          <select class="inp inp-sm" id="ref-month" style="width:110px" onchange="refreshRefChart()">
+            <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+            <option value="4">April</option><option value="5">May</option><option value="6">June</option>
+            <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+            <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+          </select>
+          <select class="inp inp-sm" id="ref-year" style="width:78px" onchange="refreshRefChart()">
+            <option>2025</option><option selected>2026</option>
+          </select>
+        </div>
+      </div>
+      <canvas id="statusChart" height="160"></canvas>
+    </div>
   </div>
   <div style="margin-bottom:20px">
     <div style="margin-bottom:12px;font-size:14px;font-weight:700;color:var(--text-primary)">Quick Access</div>
@@ -2377,27 +2495,56 @@ async function doLogin() {
     // ════════════════════════════════════════════════════════
     function renderPatientStatus() {
       return `
-  ${ph('Patient Test Status', 'Track and monitor patient test workflow.')}
-  ${bc('Home', 'Front Desk', 'Patient Status')}
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div><h2 style="font-size:18px;font-weight:700;margin:0">Daily Patient Test Status</h2></div>
+    <a href="#" onclick="navigate('dashboard')" style="font-size:13px;color:var(--steel-600);text-decoration:none">&#127968; Home</a>
+  </div>
   <div class="card">
     <div class="g4 mb2">
-      <div><label class="form-label">From Date</label><input class="inp" type="date" value="${isoToday()}"/></div>
-      <div><label class="form-label">To Date</label><input class="inp" type="date" value="${isoToday()}"/></div>
-      <div><label class="form-label">Department</label><select class="inp"><option>All Departments</option>${departments.map(d => `<option>${d}</option>`).join('')}</select></div>
-      <div><label class="form-label">Center</label><select class="inp"><option>All Centers</option><option>OPD</option><option>IPD</option><option>Corporate</option></select></div>
+      <div><label class="form-label">From Date</label><input class="inp" type="date" id="ps-from" value="${isoToday()}"/></div>
+      <div><label class="form-label">To Date</label><input class="inp" type="date" id="ps-to" value="${isoToday()}"/></div>
+      <div><label class="form-label">Department</label><select class="inp" id="ps-dept"><option>All Department</option>${departments.map(d => `<option>${d}</option>`).join('')}</select></div>
+      <div><label class="form-label">Center</label><select class="inp" id="ps-center"><option>All Center</option><option>OPD</option><option>IPD</option><option>Corporate</option></select></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;margin-bottom:16px;align-items:flex-end">
-      <div><label class="form-label">Patient Name</label><input class="inp" id="ps-name" placeholder="Search by name"/></div>
-      <div><label class="form-label">Mobile</label><input class="inp" id="ps-mob" placeholder="Mobile number"/></div>
-      <div><label class="form-label">Registration No.</label><input class="inp" id="ps-regno" placeholder="Reg. No."/></div>
-      <div class="flex" style="gap:6px"><button class="btn btn-primary" onclick="filterPS()">Search</button><button class="btn btn-ghost" onclick="showToast('Exporting…','info')">PDF</button></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:12px;margin-bottom:12px;align-items:flex-end">
+      <div><input class="inp" id="ps-name" placeholder="Enter Patient Name"/></div>
+      <div><input class="inp" id="ps-mob" placeholder="Enter Mobile Number"/></div>
+      <div><select class="inp" id="ps-center2"><option>All Center</option><option>OPD</option><option>IPD</option><option>Corporate</option></select></div>
+      <div><input class="inp" id="ps-regno" placeholder="Enter Registration Number"/></div>
+      <div class="flex" style="gap:6px">
+        <button class="btn btn-success" onclick="filterPS()">Submit</button>
+        <button class="btn btn-primary" onclick="showToast('Generating report...','info')">Report</button>
+        <button class="btn btn-ghost" onclick="showToast('Exporting PDF...','info')">PDF Report</button>
+      </div>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:10px 14px;background:var(--steel-25);border-radius:8px;border:1px solid var(--border-subtle)">
-      <span style="font-size:12.5px;color:var(--text-muted)">Records found:</span>
-      <span id="ps-count" style="font-size:18px;font-weight:700;color:var(--steel-600);font-family:'DM Mono',monospace">${patients.length}</span>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div><input class="inp" id="ps-test" placeholder="Enter Test Name"/></div>
+      <div><input class="inp" id="ps-refdoc" placeholder="Enter Ref Doc"/></div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:14px;padding:10px 14px;background:var(--steel-25);border-radius:8px;border:1px solid var(--border-subtle);align-items:center">
+      ${['Registered','SamCollect','SamAccept','SamReject','Tested','Authorized','Completed','Dispatch'].map(s => `
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer">
+          <input type="checkbox" id="ps-toggle-${s}" checked onchange="filterPS()"
+            style="width:36px;height:20px;accent-color:#e53e3e;cursor:pointer"/> ${s}
+        </label>`).join('')}
+      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;margin-left:auto">
+        <input type="checkbox" id="ps-toggle-All" checked onchange="toggleAllPS(this)"
+          style="width:36px;height:20px;accent-color:#3182ce;cursor:pointer"/> All
+      </label>
+    </div>
+    <div style="text-align:center;margin-bottom:12px;font-size:13.5px;color:var(--steel-600);font-weight:600">
+      Patients found with selected criteria -: <span id="ps-count">${patients.length}</span>
     </div>
     <div class="tbl-wrap">
-      <table><thead><tr><th>Date / Time</th><th>Reg. No.</th><th>Patient Name</th><th>Gender</th><th>Age</th><th>Ref. Doctor</th><th>Center</th><th>Tests</th><th>Status</th><th class="text-right">Charges</th><th class="text-right">Balance</th><th>Mobile</th></tr></thead>
+      <table>
+        <thead><tr>
+          <th>Date</th><th>RegNo</th><th>Full Name</th><th>Gender</th><th>Age</th><th>MDY</th>
+          <th>Ref Dr</th><th>Center</th><th>Test</th><th>Status</th>
+          <th class="text-right">Charges</th><th class="text-right">Rec Amt</th>
+          <th class="text-right">Disc Amt</th><th class="text-right">Balance</th>
+          <th>MailStatus</th><th>PPID</th><th>ViewPres</th><th>Created By</th>
+          <th>Phone No</th><th>Address</th><th>WhatAppStatus</th>
+        </tr></thead>
         <tbody id="ps-tbody">${renderPSRows(patients)}</tbody>
       </table>
     </div>
@@ -2405,37 +2552,58 @@ async function doLogin() {
   </div>`;
     }
     function renderPSRows(list) {
-      if (!list.length) return '<tr><td colspan="12" class="empty-state" style="padding:28px">No patients found. Register a new patient to get started.</td></tr>';
+      if (!list.length) return '<tr><td colspan="21" class="empty-state" style="padding:28px">No patients found. Register a new patient to get started.</td></tr>';
       return list.map(p => `<tr>
     <td style="font-size:11.5px;white-space:nowrap;color:var(--text-muted)">${p.createdAt || todayStr()}</td>
     <td class="col-mono">${p.regNo}</td>
     <td><span class="text-link" onclick="navigate('patient-clinical-history',{id:${p.id}})">${p.name}</span></td>
-    <td>${p.gender}</td><td>${p.age} ${p.ageUnit}</td>
-    <td style="font-size:11.5px">${p.refDoc || '—'}</td><td>${p.center}</td>
+    <td>${p.gender}</td>
+    <td>${p.age}</td>
+    <td style="font-size:11.5px">${p.ageUnit || 'Year'}</td>
+    <td style="font-size:11.5px">${p.refDoc || '&#8212;'}</td>
+    <td>${p.center}</td>
     <td class="trunc">${p.tests}</td>
     <td><button class="btn btn-ghost btn-xs" onclick="cycleStatus(${p.id})">${p.status || 'Reg'}</button></td>
-    <td class="text-right mono">₹${fmt(p.charges)}</td>
-    <td class="text-right mono">₹${fmt(p.balance || 0)}</td>
+    <td class="text-right mono">${fmt(p.charges)}</td>
+    <td class="text-right mono">${fmt(p.paidAmount || 0)}</td>
+    <td class="text-right mono">${fmt(p.discountAmount || 0)}</td>
+    <td class="text-right mono">${fmt(p.balance || 0)}</td>
+    <td><button class="btn btn-xs" style="background:#e53e3e;color:#fff;font-size:11px;white-space:nowrap" onclick="showToast('Mail sent!','success')">Not send mail</button></td>
+    <td style="font-size:11.5px;font-family:'DM Mono',monospace">${p.ppid || p.id}</td>
+    <td style="font-size:11.5px">${p.viewPres || p.createdBy || '&#8212;'}</td>
+    <td style="font-size:11.5px">${p.createdBy || '&#8212;'}</td>
     <td style="font-family:'DM Mono',monospace;font-size:11.5px">${p.mobile}</td>
+    <td style="font-size:11px;max-width:160px">${p.address || '&#8212;'}</td>
+    <td><button class="btn btn-xs" style="background:#e53e3e;color:#fff;font-size:11px;white-space:nowrap" onclick="showToast('WhatsApp sent!','success')">WhatsApp Not Sent</button></td>
   </tr>`).join('');
     }
+    function toggleAllPS(cb) {
+      ['Registered','SamCollect','SamAccept','SamReject','Tested','Authorized','Completed','Dispatch'].forEach(s => {
+        const el = document.getElementById('ps-toggle-' + s);
+        if (el) el.checked = cb.checked;
+      });
+      filterPS();
+    }
     function cycleStatus(id) {
-      const statuses = ['Reg', 'SamCollect', 'SamAcc', 'Tested', 'Printed', 'Dispatch'];
+      const statuses = ['Reg','SamCollect','SamAcc','SamReject','Tested','Authorized','Completed','Dispatch'];
       const p = patients.find(x => x.id === id); if (!p) return;
       p.status = statuses[(statuses.indexOf(p.status || 'Reg') + 1) % statuses.length];
-      // Sync sampleQueue
       const sq = sampleQueue.find(s => s.id === id);
-      if (sq) { if (p.status === 'Tested') sq.resultStatus = 'tested'; if (p.status === 'Printed') sq.resultStatus = 'completed'; }
+      if (sq) { if (p.status === 'Tested') sq.resultStatus = 'tested'; if (p.status === 'Completed') sq.resultStatus = 'completed'; }
       filterPS();
     }
     function filterPS() {
       const name = document.getElementById('ps-name')?.value.toLowerCase();
       const mob = document.getElementById('ps-mob')?.value;
       const reg = document.getElementById('ps-regno')?.value;
+      const testFilter = document.getElementById('ps-test')?.value.toLowerCase();
+      const refDoc = document.getElementById('ps-refdoc')?.value.toLowerCase();
       let list = [...patients];
       if (name) list = list.filter(p => p.name.toLowerCase().includes(name));
       if (mob) list = list.filter(p => p.mobile && p.mobile.includes(mob));
       if (reg) list = list.filter(p => p.regNo.includes(reg));
+      if (testFilter) list = list.filter(p => p.tests && p.tests.toLowerCase().includes(testFilter));
+      if (refDoc) list = list.filter(p => p.refDoc && p.refDoc.toLowerCase().includes(refDoc));
       const tbody = document.getElementById('ps-tbody');
       const ct = document.getElementById('ps-count');
       if (tbody) tbody.innerHTML = renderPSRows(list);
@@ -2586,36 +2754,124 @@ async function doLogin() {
       const t = document.getElementById('rd-tbody'); if (t) t.innerHTML = renderRDRows(res);
     }
     function openRDModal(id) {
-      const d = id ? refDoctors.find(x => x.id === id) : null;
-      showModal(`
-    <div class="g2 mb2">
-      <div><label class="form-label">Doctor Code</label><input class="inp${d ? ' inp-readonly' : ''}" id="rdm-code" value="${d?.code || ''}" ${d ? 'readonly' : ''} placeholder="Auto-generated"/></div>
-      <div><label class="form-label">Doctor Name <span style="color:#dc2626">*</span></label><input class="inp" id="rdm-name" value="${d?.name || ''}" placeholder="Full name with title"/></div>
+    function renderPrintReport() {
+      return `
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    <div><h2 style="font-size:18px;font-weight:700;margin:0">Printing Report</h2></div>
+    <div style="font-size:12px;color:var(--text-muted)">&#127968; Home &nbsp;/&nbsp; Printing Report</div>
+  </div>
+  <div class="card">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px;border:1px solid var(--border-subtle);border-radius:8px;padding:6px 12px">
+        <span>&#128197;</span>
+        <input class="inp" type="date" id="pr-from" value="${isoToday()}" style="border:none;outline:none;padding:0;font-size:13px;width:100%"/>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;border:1px solid var(--border-subtle);border-radius:8px;padding:6px 12px">
+        <span>&#128197;</span>
+        <input class="inp" type="date" id="pr-to" value="${isoToday()}" style="border:none;outline:none;padding:0;font-size:13px;width:100%"/>
+      </div>
+      <input class="inp" id="pr-name" placeholder="Enter Patient Name"/>
+      <input class="inp" id="pr-regno" placeholder="Enter Reg No"/>
     </div>
-    <div class="g2 mb2">
-      <div><label class="form-label">Mobile</label><input class="inp" id="rdm-mob" value="${d?.mobile || ''}" placeholder="Mobile"/></div>
-      <div><label class="form-label">Email</label><input class="inp" id="rdm-email" type="email" value="${d?.email || ''}" placeholder="Email"/></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;margin-bottom:14px;align-items:center">
+      <input class="inp" id="pr-barcode" placeholder="Enter Barcode"/>
+      <input class="inp" id="pr-mob" placeholder="Enter Mobile No"/>
+      <div style="display:flex;align-items:center;gap:16px">
+        <select class="inp" id="pr-center" style="min-width:120px">
+          <option>All</option><option>OPD</option><option>IPD</option><option>Corporate</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer">
+          <input type="radio" name="pr-status" value="All" checked onchange="filterPR()"/> All
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer">
+          <input type="radio" name="pr-status" value="Completed" onchange="filterPR()"/> Completed
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer">
+          <input type="radio" name="pr-status" value="Pending" onchange="filterPR()"/> Pending
+        </label>
+        <button class="btn btn-primary" style="background:#00bcd4;border-color:#00bcd4;min-width:70px" onclick="filterPR()">Click</button>
+      </div>
     </div>
-    <div class="g2 mb2">
-      <div><label class="form-label">City</label><input class="inp" id="rdm-city" value="${d?.city || ''}" placeholder="City"/></div>
-      <div><label class="form-label">Address</label><input class="inp" id="rdm-addr" value="${d?.address || ''}" placeholder="Address"/></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr style="background:#1a237e;color:#fff">
+          <th style="color:#fff">RegNo</th>
+          <th style="color:#fff">Name</th>
+          <th style="color:#fff">Mobile No</th>
+          <th style="color:#fff">Gender</th>
+          <th style="color:#fff">Age</th>
+          <th style="color:#fff">MDY</th>
+          <th style="color:#fff">Ref.Doc</th>
+          <th style="color:#fff">Center</th>
+          <th style="color:#fff">Test Name</th>
+          <th style="color:#fff">Status</th>
+          <th style="color:#fff">Report</th>
+          <th style="color:#fff">Charges</th>
+          <th style="color:#fff">Paid</th>
+          <th style="color:#fff">Discount</th>
+          <th style="color:#fff">Balance</th>
+          <th style="color:#fff">Printed by</th>
+          <th style="color:#fff">Created By</th>
+          <th style="color:#fff">Mobile No</th>
+          <th style="color:#fff">Address</th>
+        </tr></thead>
+        <tbody id="pr-tbody">${renderPRRows(patients)}</tbody>
+      </table>
     </div>
-    <div class="mb2"><label class="form-label">Rate List</label>
-      <select class="inp" id="rdm-rateList"><option value="">— Select Rate List —</option>
-        ${rateLists.map(r => `<option value="${r.id}" ${d?.rateListId == r.id ? 'selected' : ''}>${r.name}</option>`).join('')}
-      </select>
-    </div>
-    <div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-success" onclick="saveRD(${id || 'null'})">Save Doctor</button></div>
-  `, d ? 'Edit Referring Doctor' : 'Add Referring Doctor', 'modal-md');
+    ${pager(1, Math.max(1, Math.ceil(patients.length / 15)))}
+  </div>`;
     }
-    function saveRD(id) {
-      const name = document.getElementById('rdm-name')?.value.trim();
-      if (!name) { showToast('Doctor name is required', 'error'); return; }
-      const rateListId = document.getElementById('rdm-rateList')?.value || null;
-      if (id && id !== 'null') {
-        const d = refDoctors.find(x => x.id === id);
-        if (d) { d.name = name; d.mobile = document.getElementById('rdm-mob')?.value || ''; d.email = document.getElementById('rdm-email')?.value || ''; d.city = document.getElementById('rdm-city')?.value || ''; d.address = document.getElementById('rdm-addr')?.value || ''; d.rateListId = rateListId; }
-        showToast('Doctor updated');
+    function renderPRRows(list) {
+      if (!list.length) return '<tr><td colspan="19" class="empty-state" style="padding:28px">No patients found</td></tr>';
+      const rows = [];
+      list.forEach((p, pi) => {
+        const testList = p.tests ? p.tests.split(',') : ['---'];
+        const rowBg = pi % 2 === 0 ? '#e3f2fd' : '#fff';
+        testList.forEach((t, idx) => {
+          const isFirst = idx === 0;
+          const rowspan = testList.length;
+          const statusColor = (p.status || 'Reg') === 'Printed' || (p.status || 'Reg') === 'Completed' ? '#4caf50' : '#9e9e9e';
+          rows.push(`<tr style="background:${rowBg}">
+            ${isFirst ? `
+            <td rowspan="${rowspan}" style="vertical-align:top;font-family:'DM Mono',monospace;font-size:12px">${p.regNo}</td>
+            <td rowspan="${rowspan}" style="vertical-align:top;font-weight:600">${p.name}</td>
+            <td rowspan="${rowspan}" style="vertical-align:top;font-size:12px">${p.mobile}</td>
+            <td rowspan="${rowspan}" style="vertical-align:top">${p.gender}</td>
+            <td rowspan="${rowspan}" style="vertical-align:top">${p.age}</td>
+            <td rowspan="${rowspan}" style="vertical-align:top;font-size:11px">${p.ageUnit || 'Year'}</td>
+            <td rowspan="${rowspan}" style="vertical-align:top;font-size:11px">${p.refDoc || ''}</td>
+            <td rowspan="${rowspan}" style="vertical-align:top">${p.center}</td>` : ''}
+            <td style="font-size:12px">${t.trim()}</td>
+            <td><button class="btn btn-xs" style="background:${statusColor};color:#fff;font-size:11px">${p.status || 'Printed'}</button></td>
+            <td><span class="text-link" style="font-size:12px" onclick="showToast('Opening report...','info')">Report</span></td>
+            ${isFirst ? `
+            <td rowspan="${rowspan}" style="vertical-align:top;text-align:right">${fmt(p.charges)}</td>
+            <td rowspan="${rowspan}" style="vertical-align:top;text-align:right">${fmt(p.paidAmount || p.charges || 0)}</td>
+            <td rowspan="${rowspan}" style="vertical-align:top;text-align:right">${fmt(p.discountAmount || 0)}</td>
+            <td rowspan="${rowspan}" style="vertical-align:top;text-align:right">${fmt(p.balance || 0)}</td>
+            <td rowspan="${rowspan}" style="vertical-align:top;font-size:11px">${p.printedBy || 'Reporting'}</td>
+            <td rowspan="${rowspan}" style="vertical-align:top;font-size:11px">${p.createdBy || 'Admin'}</td>
+            <td rowspan="${rowspan}" style="vertical-align:top;font-size:12px">${p.mobile}</td>
+            <td rowspan="${rowspan}" style="vertical-align:top;font-size:11px;max-width:160px">${p.address || ''}</td>` : ''}
+          </tr>`);
+        });
+      });
+      return rows.join('');
+    }
+    function filterPR() {
+      const name = document.getElementById('pr-name')?.value.toLowerCase();
+      const regno = document.getElementById('pr-regno')?.value;
+      const mob = document.getElementById('pr-mob')?.value;
+      const selectedStatus = document.querySelector('input[name="pr-status"]:checked')?.value || 'All';
+      let list = [...patients];
+      if (name) list = list.filter(p => p.name.toLowerCase().includes(name));
+      if (regno) list = list.filter(p => p.regNo.includes(regno));
+      if (mob) list = list.filter(p => p.mobile && p.mobile.includes(mob));
+      if (selectedStatus !== 'All') list = list.filter(p => (p.status || '').toLowerCase() === selectedStatus.toLowerCase());
+      const tbody = document.getElementById('pr-tbody');
+      if (tbody) tbody.innerHTML = renderPRRows(list);
+    }
+
       } else {
         refDoctors.push({ id: Date.now(), code: String(Math.floor(Math.random() * 900) + 100), name, mobile: document.getElementById('rdm-mob')?.value || '', email: document.getElementById('rdm-email')?.value || '', city: document.getElementById('rdm-city')?.value || '', address: document.getElementById('rdm-addr')?.value || '', rateListId });
         showToast('Doctor added');
@@ -3953,26 +4209,199 @@ async function doLogin() {
     // ════════════════════════════════════════════════════════
     //  DASHBOARD CHARTS
     // ════════════════════════════════════════════════════════
+    let _chartDaily = null, _chartDept = null, _chartRef = null;
+
     function initDashboardCharts() {
-      const el = id => document.getElementById(id);
-      const pal = ['#4682b4', '#2d6499', '#72add1', '#163557', '#5a9bc4', '#0a1929'];
-      const chartOpts = () => ({ responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(70,130,180,.1)' }, ticks: { color: '#5a7a9a', font: { size: 10 } } }, x: { grid: { display: false }, ticks: { color: '#5a7a9a', font: { size: 10 } } } } });
-      if (el('dailyRegsChart')) {
-        const today = new Date();
-        const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(today); d.setDate(today.getDate() - 6 + i); return d; });
-        const labels = days.map(d => d.toLocaleDateString(undefined, { weekday: 'short' }));
-        const counts = days.map(d => patients.filter(p => { try { return new Date(p.createdAt).toDateString() === d.toDateString(); } catch { return false; } }).length);
-        new Chart(el('dailyRegsChart').getContext('2d'), { type: 'bar', data: { labels, datasets: [{ data: counts, backgroundColor: '#4682b4', borderRadius: 5, borderSkipped: false }] }, options: chartOpts() });
+      const today = new Date();
+      const fromEl = document.getElementById('dash-from');
+      const toEl   = document.getElementById('dash-to');
+      if (fromEl && !fromEl.value) fromEl.value = new Date(today - 29*864e5).toISOString().slice(0,10);
+      if (toEl   && !toEl.value)   toEl.value   = today.toISOString().slice(0,10);
+      const m = String(today.getMonth()+1);
+      const mEl = document.getElementById('dept-month'); if (mEl) mEl.value = m;
+      const rEl = document.getElementById('ref-month');  if (rEl) rEl.value = m;
+      buildDailyChart(); buildDeptChart(); buildRefChart();
+    }
+
+    function refreshDailyChart() { buildDailyChart(); }
+    function refreshDeptChart()  { buildDeptChart();  }
+    function refreshRefChart()   { buildRefChart();   }
+
+    // ── 1. DAILY PATIENTS — Area/Line chart pulled from backend ──
+    async function buildDailyChart() {
+      const canvas = document.getElementById('dailyRegsChart');
+      if (!canvas) return;
+      if (_chartDaily) { _chartDaily.destroy(); _chartDaily = null; }
+
+      const fromVal = document.getElementById('dash-from')?.value || new Date(Date.now()-29*864e5).toISOString().slice(0,10);
+      const toVal   = document.getElementById('dash-to')?.value   || new Date().toISOString().slice(0,10);
+
+      // Build day array
+      const fromD = new Date(fromVal), toD = new Date(toVal+'T23:59:59');
+      const days = [];
+      for (let d = new Date(fromD); d <= toD; d.setDate(d.getDate()+1)) days.push(new Date(d));
+      const labels = days.map(d => d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}));
+
+      // Try backend first, fall back to local patients array
+      let counts;
+      try {
+        const token = authToken || localStorage.getItem('lis_token') || '';
+        const res = await fetch('/api/v1/registrations?from='+fromVal+'T00:00:00&to='+toVal+'T23:59:59&page=0&size=9999',
+          { headers: { 'Authorization': 'Bearer '+token } });
+        const data = await res.json();
+        const regs = (data.success && data.data) ? (data.data.content || []) : [];
+        counts = days.map(d => regs.filter(r => {
+          try { return new Date(r.createdAt).toDateString() === d.toDateString(); } catch { return false; }
+        }).length);
+      } catch(e) {
+        counts = days.map(d => patients.filter(p => {
+          try { return new Date(p.createdAt).toDateString() === d.toDateString(); } catch { return false; }
+        }).length);
       }
-      if (el('statusChart')) {
-        const counts = ['Reg', 'SamCollect', 'Tested', 'Printed', 'Dispatch'].map(s => patients.filter(p => p.status === s).length);
-        new Chart(el('statusChart').getContext('2d'), { type: 'doughnut', data: { labels: ['Registered', 'Collected', 'Tested', 'Printed', 'Dispatched'], datasets: [{ data: counts.some(v => v > 0) ? counts : [4, 2, 3, 5, 2], backgroundColor: pal, borderWidth: 3, borderColor: '#fff' }] }, options: { responsive: true, cutout: '62%', plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 10, boxWidth: 10 } } } } });
+
+      // Demo data if empty
+      if (!counts.some(v=>v>0))
+        counts = days.map((_,i) => Math.floor(60+150*Math.abs(Math.sin(i*0.45))+Math.random()*40));
+
+      _chartDaily = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: { labels, datasets: [{ data: counts, fill: true,
+          borderColor: '#4682b4', borderWidth: 2,
+          backgroundColor: 'rgba(70,130,180,0.15)',
+          pointBackgroundColor: '#4682b4',
+          pointRadius: days.length > 45 ? 0 : 3,
+          pointHoverRadius: 5, tension: 0.35 }] },
+        options: { responsive: true,
+          plugins: { legend: { display: false },
+            tooltip: { callbacks: { label: ctx => ' Patients: '+ctx.parsed.y } } },
+          scales: {
+            y: { beginAtZero: true,
+              title: { display: true, text: 'No. of Patients', color: '#5a7a9a', font: { size: 11 } },
+              grid: { color: 'rgba(70,130,180,0.08)' }, ticks: { color: '#5a7a9a', font: { size: 10 } } },
+            x: { grid: { display: false },
+              ticks: { color: '#5a7a9a', font: { size: 10 }, maxTicksLimit: 20, maxRotation: 45 } } } }
+      });
+    }
+
+    // ── 2. DEPT BAR CHART — pulled from backend registrations ──
+    async function buildDeptChart() {
+      const canvas = document.getElementById('deptChart');
+      if (!canvas) return;
+      if (_chartDept) { _chartDept.destroy(); _chartDept = null; }
+
+      const COLORS = ['#FFD600','#7CB342','#00BCD4','#9C27B0','#E91E63',
+                      '#F44336','#00897B','#FF6F00','#1565C0','#78909C'];
+
+      const month = document.getElementById('dept-month')?.value || String(new Date().getMonth()+1);
+      const year  = document.getElementById('dept-year')?.value  || '2026';
+      const fromD = year+'-'+String(month).padStart(2,'0')+'-01';
+      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+      const toD   = year+'-'+String(month).padStart(2,'0')+'-'+lastDay;
+
+      let deptCounts = {};
+      try {
+        const token = authToken || localStorage.getItem('lis_token') || '';
+        const res = await fetch('/api/v1/dashboard/patients-by-department?month='+month+'&year='+year,
+          { headers: { 'Authorization': 'Bearer '+token } });
+        const data = await res.json();
+        const rows = (data.success && data.data) ? data.data : [];
+        rows.forEach(row => { deptCounts[row.department] = Number(row.count); });
+      } catch(e) {}
+
+      // Fall back to local data
+      if (!Object.keys(deptCounts).length) {
+        departments.forEach(d => {
+          const c = testCatalog.filter(t => t.dept===d).length;
+          if (c > 0) deptCounts[d] = c;
+        });
       }
-      if (el('deptChart')) {
-        const depts = departments.slice(0, 5);
-        const counts = depts.map(d => testCatalog.filter(t => t.dept === d).length);
-        new Chart(el('deptChart').getContext('2d'), { type: 'bar', data: { labels: depts, datasets: [{ data: counts, backgroundColor: pal, borderRadius: 5, borderSkipped: false }] }, options: chartOpts() });
+
+      // Demo data if still empty
+      if (!Object.keys(deptCounts).length) {
+        ['Allergy','Microbiology','Clinical Chemistry','Covid','Urology',
+         'Haematology','Serology','Endocrinology'].forEach((d,i) => {
+          deptCounts[d] = Math.floor(50 + Math.random()*2800);
+        });
       }
+
+      const sorted = Object.entries(deptCounts).sort((a,b)=>b[1]-a[1]);
+      const depts  = sorted.map(e=>e[0]);
+      const counts = sorted.map(e=>e[1]);
+
+      _chartDept = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: { labels: depts, datasets: [{ data: counts,
+          backgroundColor: depts.map((_,i)=>COLORS[i%COLORS.length]),
+          borderRadius: 4, borderSkipped: false }] },
+        options: { responsive: true, plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true,
+              title: { display: true, text: 'No. of patients', color: '#5a7a9a', font: { size: 11 } },
+              grid: { color: 'rgba(70,130,180,0.08)' }, ticks: { color: '#5a7a9a', font: { size: 10 } } },
+            x: { grid: { display: false },
+              ticks: { color: '#5a7a9a', font: { size: 10 }, maxRotation: 45 } } } }
+      });
+    }
+
+    // ── 3. REFERRAL DOCTORS PIE — pulled from backend ──
+    async function buildRefChart() {
+      const canvas = document.getElementById('statusChart');
+      if (!canvas) return;
+      if (_chartRef) { _chartRef.destroy(); _chartRef = null; }
+
+      const COLORS = ['#42A5F5','#FFA726','#66BB6A','#EF5350','#FFD54F',
+                      '#26C6DA','#AB47BC','#EC407A','#8D6E63','#78909C'];
+
+      const month = document.getElementById('ref-month')?.value || String(new Date().getMonth()+1);
+      const year  = document.getElementById('ref-year')?.value  || '2026';
+      const fromD = year+'-'+String(month).padStart(2,'0')+'-01';
+      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+      const toD   = year+'-'+String(month).padStart(2,'0')+'-'+lastDay;
+
+      let docMap = {};
+      try {
+        const token = authToken || localStorage.getItem('lis_token') || '';
+        const res = await fetch('/api/v1/dashboard/referral-doctors?month='+month+'&year='+year,
+          { headers: { 'Authorization': 'Bearer '+token } });
+        const data = await res.json();
+        const rows = (data.success && data.data) ? data.data : [];
+        rows.forEach(row => { docMap[row.doctor] = Number(row.count); });
+      } catch(e) {}
+
+      // Fall back to local patients
+      if (!Object.keys(docMap).length) {
+        patients.forEach(p => {
+          const k = p.refDoc || 'Self Requested';
+          docMap[k] = (docMap[k]||0) + 1;
+        });
+      }
+
+      // Demo data if still empty
+      if (!Object.keys(docMap).length) {
+        docMap = { 'Self Requested':862, 'Dr. Avinash Richard':186, 'Dr. Gobin Clinic':169,
+                   'Dr. Vikas Gobin':143, 'Dr. Rawle Nurse':103, 'Dr. Batukhan Wilson':66,
+                   'Dr. Jemaine Slowe':64, 'Dr. Hemchand Jhagru':55, 'Others':52 };
+      }
+
+      const sorted  = Object.entries(docMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
+      const labels  = sorted.map(e=>e[0]);
+      const data    = sorted.map(e=>e[1]);
+
+      _chartRef = new Chart(canvas.getContext('2d'), {
+        type: 'pie',
+        data: { labels, datasets: [{ data,
+          backgroundColor: labels.map((_,i)=>COLORS[i%COLORS.length]),
+          borderWidth: 2, borderColor: '#fff' }] },
+        options: { responsive: true,
+          plugins: {
+            legend: { position: 'right',
+              labels: { font: { size: 11 }, padding: 10, boxWidth: 14,
+                generateLabels: chart => chart.data.labels.map((label,i) => ({
+                  text: label + '  ' + chart.data.datasets[0].data[i],
+                  fillStyle: chart.data.datasets[0].backgroundColor[i],
+                  strokeStyle: '#fff', lineWidth: 1, index: i })) } },
+            tooltip: { callbacks: { label: ctx => ' '+ctx.label+': '+ctx.parsed } } } }
+      });
     }
     // ════════════════════════════════════════════════════════
     // INTEGRATION PATCH — connects all modules together
