@@ -1710,13 +1710,13 @@
         </div>
         <div class="form-group">
           <label class="form-label">Username</label>
-          <input class="inp" id="login-user" placeholder="Enter your username" value="AwaleMediSof"
+          <input class="inp" id="login-user" placeholder="Enter your username" value="admin"
             autocomplete="username" />
         </div>
         <div class="form-group">
           <label class="form-label">Password</label>
           <div class="flex">
-            <input class="inp" id="login-pass" type="password" placeholder="Enter your password" value="AwaleMediSof"
+            <input class="inp" id="login-pass" type="password" placeholder="Enter your password" value="admin123"
               autocomplete="current-password" class="inp login-pass-input" />
             <button type="button" class="login-pass-toggle" onclick="togglePassVis()">👁</button>
           </div>
@@ -1904,60 +1904,35 @@
     let currentUser = { username: '', fullName: '', roles: [] };
 
 async function doLogin() {
-  const u = document.getElementById('login-user').value.trim();
-  const p = document.getElementById('login-pass').value.trim();
-  if (!u || !p) { showToast('Please enter your credentials', 'error'); return; }
-
-  try {
-    const res = await fetch('http://localhost:8081/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: u, password: p })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok || !data.success) {
-      showToast(data?.message || 'Invalid username or password', 'error');
-      return;
+      const u = document.getElementById('login-user').value.trim();
+      const p = document.getElementById('login-pass').value.trim();
+      if (!u || !p) { showToast('Please enter your credentials', 'error'); return; }
+      try {
+        const res = await fetch('http://localhost:8081/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: u, password: p })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          showToast(data?.message || 'Invalid username or password', 'error');
+          return;
+        }
+        const d = data.data || {};
+        const token    = d.token    || '';
+        const fullName = d.fullName || u;
+        const username = d.username || u;
+        const roles    = d.roles    || ['ADMIN'];
+        if (token) { authToken = token; localStorage.setItem('lis_token', token); }
+        currentUser = { username, fullName, roles };
+        showToast('Welcome back, ' + fullName + '!', 'success');
+        launchApp();
+      } catch (e) {
+        console.error('Login error:', e);
+        showToast('Backend error: ' + e.message, 'error');
+      }
     }
 
-    const token    = data?.data?.token    || data?.token    || data?.accessToken || '';
-    const fullName = data?.data?.fullName || data?.fullName || data?.name        || u;
-    const username = data?.data?.username || data?.username || u;
-    const roles    = data?.data?.roles    || data?.roles    || ['ADMIN'];
-
-    if (token) {
-      authToken = token;
-      localStorage.setItem('lis_token', token);
-    }
-
-    currentUser = { username, fullName, roles };
-    showToast('Welcome back, ' + fullName + '!', 'success');
-    launchApp();
-
-  } catch (e) {
-    console.error('Login error:', e);
-    if (u === 'AwaleMediSof' || u === 'admin') {
-      currentUser = { username: u, fullName: 'Administrator', roles: ['ADMIN'] };
-      authToken = '';
-      showToast('Connected in offline mode', 'warn');
-      launchApp();
-    } else {
-      showToast('Cannot reach server. Check backend is running on port 8081.', 'error');
-    }
-  }
-}
-
-    function launchApp() {
-      document.getElementById('login-page').style.display = 'none';
-      document.getElementById('app').style.display = 'flex';
-      document.getElementById('sb-uname').textContent = currentUser.fullName || 'Administrator';
-      document.getElementById('sb-av').textContent = (currentUser.fullName || 'A').charAt(0).toUpperCase();
-      document.getElementById('sb-urole').textContent = currentUser.roles?.[0] || 'ADMIN';
-      buildSidebar();
-      navigate('dashboard');
-    }
 
     document.addEventListener('keydown', e => {
       if (e.key === 'Enter' && document.getElementById('login-page').style.display !== 'none') doLogin();
@@ -1969,75 +1944,6 @@ async function doLogin() {
     function apiBase() { return 'http://localhost:8081/api'; }
 
     // Placeholder — overridden by the integration patch below
-    async function apiFetch(path, opts = {}) {
-      const token = authToken || localStorage.getItem('lis_token') || '';
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        ...(opts.headers || {})
-      };
-      try {
-        const res = await fetch('http://localhost:8081/api' + path, { ...opts, headers });
-        if (res.status === 401) { clearAuth(); return null; }
-        if (!res.ok) { return null; }
-        return await res.json();
-      } catch (e) {
-        console.error('apiFetch error:', e);
-        return null;
-      }
-    }) {
-      const token = authToken || localStorage.getItem('lis_token') || '';
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        ...(opts.headers || {})
-      };
-      try {
-        const res = await fetch('http://localhost:8081/api' + path, { ...opts, headers });
-        if (res.status === 401) { clearAuth(); return null; }
-        if (!res.ok) { return null; }
-        return await res.json();
-      } catch (e) {
-        console.error('apiFetch error:', e);
-        return null;
-      }
-    }) {
-      const token = authToken || localStorage.getItem('lis_token') || '';
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        ...(opts.headers || {})
-      };
-      try {
-        const res = await fetch('http://localhost:8081/api' + path, { ...opts, headers });
-        if (res.status === 401) { clearAuth(); return null; }
-        if (!res.ok) { return null; }
-        return await res.json();
-      } catch (e) {
-        console.error('apiFetch error:', e);
-        return null;
-      }
-    }) {
-  const token = authToken || localStorage.getItem('lis_token') || '';
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    ...(opts.headers || {})
-  };
-  try {
-    const res = await fetch('http://localhost:8081/api' + path, { ...opts, headers });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      return { success: false, message: err.message || 'Request failed' };
-    }
-    return await res.json();
-  } catch (e) {
-    console.error('apiFetch error:', e);
-    return null;
-  }
-}
-
-
     function setCurrentUserFromAuth(resp) {
       if (!resp) return;
       const d = resp.data || {};
@@ -2486,9 +2392,6 @@ async function doLogin() {
     }
 
     // saveRegistration is defined in integration_patch.js (overrides this)
-    function saveRegistration() {
-      showToast('Saving...', 'info');
-    }
 
     // ════════════════════════════════════════════════════════
     //  PATIENT STATUS
@@ -2584,14 +2487,7 @@ async function doLogin() {
       });
       filterPS();
     }
-    function cycleStatus(id) {
-      const statuses = ['Reg','SamCollect','SamAcc','SamReject','Tested','Authorized','Completed','Dispatch'];
-      const p = patients.find(x => x.id === id); if (!p) return;
-      p.status = statuses[(statuses.indexOf(p.status || 'Reg') + 1) % statuses.length];
-      const sq = sampleQueue.find(s => s.id === id);
-      if (sq) { if (p.status === 'Tested') sq.resultStatus = 'tested'; if (p.status === 'Completed') sq.resultStatus = 'completed'; }
-      filterPS();
-    }
+    
     function filterPS() {
       const name = document.getElementById('ps-name')?.value.toLowerCase();
       const mob = document.getElementById('ps-mob')?.value;
@@ -2754,163 +2650,37 @@ async function doLogin() {
       const t = document.getElementById('rd-tbody'); if (t) t.innerHTML = renderRDRows(res);
     }
     function openRDModal(id) {
-    function renderPrintReport() {
-      return `
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-    <div><h2 style="font-size:18px;font-weight:700;margin:0">Printing Report</h2></div>
-    <div style="font-size:12px;color:var(--text-muted)">&#127968; Home &nbsp;/&nbsp; Printing Report</div>
-  </div>
-  <div class="card">
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px">
-      <div style="display:flex;align-items:center;gap:8px;border:1px solid var(--border-subtle);border-radius:8px;padding:6px 12px">
-        <span>&#128197;</span>
-        <input class="inp" type="date" id="pr-from" value="${isoToday()}" style="border:none;outline:none;padding:0;font-size:13px;width:100%"/>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;border:1px solid var(--border-subtle);border-radius:8px;padding:6px 12px">
-        <span>&#128197;</span>
-        <input class="inp" type="date" id="pr-to" value="${isoToday()}" style="border:none;outline:none;padding:0;font-size:13px;width:100%"/>
-      </div>
-      <input class="inp" id="pr-name" placeholder="Enter Patient Name"/>
-      <input class="inp" id="pr-regno" placeholder="Enter Reg No"/>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;margin-bottom:14px;align-items:center">
-      <input class="inp" id="pr-barcode" placeholder="Enter Barcode"/>
-      <input class="inp" id="pr-mob" placeholder="Enter Mobile No"/>
-      <div style="display:flex;align-items:center;gap:16px">
-        <select class="inp" id="pr-center" style="min-width:120px">
-          <option>All</option><option>OPD</option><option>IPD</option><option>Corporate</option>
-        </select>
-        <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer">
-          <input type="radio" name="pr-status" value="All" checked onchange="filterPR()"/> All
-        </label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer">
-          <input type="radio" name="pr-status" value="Completed" onchange="filterPR()"/> Completed
-        </label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer">
-          <input type="radio" name="pr-status" value="Pending" onchange="filterPR()"/> Pending
-        </label>
-        <button class="btn btn-primary" style="background:#00bcd4;border-color:#00bcd4;min-width:70px" onclick="filterPR()">Click</button>
-      </div>
-    </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr style="background:#1a237e;color:#fff">
-          <th style="color:#fff">RegNo</th>
-          <th style="color:#fff">Name</th>
-          <th style="color:#fff">Mobile No</th>
-          <th style="color:#fff">Gender</th>
-          <th style="color:#fff">Age</th>
-          <th style="color:#fff">MDY</th>
-          <th style="color:#fff">Ref.Doc</th>
-          <th style="color:#fff">Center</th>
-          <th style="color:#fff">Test Name</th>
-          <th style="color:#fff">Status</th>
-          <th style="color:#fff">Report</th>
-          <th style="color:#fff">Charges</th>
-          <th style="color:#fff">Paid</th>
-          <th style="color:#fff">Discount</th>
-          <th style="color:#fff">Balance</th>
-          <th style="color:#fff">Printed by</th>
-          <th style="color:#fff">Created By</th>
-          <th style="color:#fff">Mobile No</th>
-          <th style="color:#fff">Address</th>
-        </tr></thead>
-        <tbody id="pr-tbody">${renderPRRows(patients)}</tbody>
-      </table>
-    </div>
-    ${pager(1, Math.max(1, Math.ceil(patients.length / 15)))}
-  </div>`;
-    }
-    function renderPRRows(list) {
-      if (!list.length) return '<tr><td colspan="19" class="empty-state" style="padding:28px">No patients found</td></tr>';
-      const rows = [];
-      list.forEach((p, pi) => {
-        const testList = p.tests ? p.tests.split(',') : ['---'];
-        const rowBg = pi % 2 === 0 ? '#e3f2fd' : '#fff';
-        testList.forEach((t, idx) => {
-          const isFirst = idx === 0;
-          const rowspan = testList.length;
-          const statusColor = (p.status || 'Reg') === 'Printed' || (p.status || 'Reg') === 'Completed' ? '#4caf50' : '#9e9e9e';
-          rows.push(`<tr style="background:${rowBg}">
-            ${isFirst ? `
-            <td rowspan="${rowspan}" style="vertical-align:top;font-family:'DM Mono',monospace;font-size:12px">${p.regNo}</td>
-            <td rowspan="${rowspan}" style="vertical-align:top;font-weight:600">${p.name}</td>
-            <td rowspan="${rowspan}" style="vertical-align:top;font-size:12px">${p.mobile}</td>
-            <td rowspan="${rowspan}" style="vertical-align:top">${p.gender}</td>
-            <td rowspan="${rowspan}" style="vertical-align:top">${p.age}</td>
-            <td rowspan="${rowspan}" style="vertical-align:top;font-size:11px">${p.ageUnit || 'Year'}</td>
-            <td rowspan="${rowspan}" style="vertical-align:top;font-size:11px">${p.refDoc || ''}</td>
-            <td rowspan="${rowspan}" style="vertical-align:top">${p.center}</td>` : ''}
-            <td style="font-size:12px">${t.trim()}</td>
-            <td><button class="btn btn-xs" style="background:${statusColor};color:#fff;font-size:11px">${p.status || 'Printed'}</button></td>
-            <td><span class="text-link" style="font-size:12px" onclick="showToast('Opening report...','info')">Report</span></td>
-            ${isFirst ? `
-            <td rowspan="${rowspan}" style="vertical-align:top;text-align:right">${fmt(p.charges)}</td>
-            <td rowspan="${rowspan}" style="vertical-align:top;text-align:right">${fmt(p.paidAmount || p.charges || 0)}</td>
-            <td rowspan="${rowspan}" style="vertical-align:top;text-align:right">${fmt(p.discountAmount || 0)}</td>
-            <td rowspan="${rowspan}" style="vertical-align:top;text-align:right">${fmt(p.balance || 0)}</td>
-            <td rowspan="${rowspan}" style="vertical-align:top;font-size:11px">${p.printedBy || 'Reporting'}</td>
-            <td rowspan="${rowspan}" style="vertical-align:top;font-size:11px">${p.createdBy || 'Admin'}</td>
-            <td rowspan="${rowspan}" style="vertical-align:top;font-size:12px">${p.mobile}</td>
-            <td rowspan="${rowspan}" style="vertical-align:top;font-size:11px;max-width:160px">${p.address || ''}</td>` : ''}
-          </tr>`);
-        });
-      });
-      return rows.join('');
-    }
-    function filterPR() {
-      const name = document.getElementById('pr-name')?.value.toLowerCase();
-      const regno = document.getElementById('pr-regno')?.value;
-      const mob = document.getElementById('pr-mob')?.value;
-      const selectedStatus = document.querySelector('input[name="pr-status"]:checked')?.value || 'All';
-      let list = [...patients];
-      if (name) list = list.filter(p => p.name.toLowerCase().includes(name));
-      if (regno) list = list.filter(p => p.regNo.includes(regno));
-      if (mob) list = list.filter(p => p.mobile && p.mobile.includes(mob));
-      if (selectedStatus !== 'All') list = list.filter(p => (p.status || '').toLowerCase() === selectedStatus.toLowerCase());
-      const tbody = document.getElementById('pr-tbody');
-      if (tbody) tbody.innerHTML = renderPRRows(list);
-    }
-
-      } else {
-        refDoctors.push({ id: Date.now(), code: String(Math.floor(Math.random() * 900) + 100), name, mobile: document.getElementById('rdm-mob')?.value || '', email: document.getElementById('rdm-email')?.value || '', city: document.getElementById('rdm-city')?.value || '', address: document.getElementById('rdm-addr')?.value || '', rateListId });
-        showToast('Doctor added');
-      }
-      closeModal(); navigate('ref-doctor');
-    }
-    function deleteRD(id) { if (!confirm('Remove this doctor?')) return; refDoctors = refDoctors.filter(d => d.id !== id); showToast('Doctor removed'); navigate('ref-doctor'); }
-
-    // ════════════════════════════════════════════════════════
-    //  GRAPHICAL DISPLAY
-    // ════════════════════════════════════════════════════════
-    function renderGraphicalDisplay() {
-      const colMap = { Reg: '#dc2626', SamAcc: '#2d6499', Tested: '#b45309', Printed: '#15803d', Dispatch: '#7c3aed' };
-      return `
-  ${ph('Graphical Patient Display', 'Visual overview of registered patients.')}
-  ${bc('Home', 'Front Desk', 'Graphical Display')}
-  <div class="card">
-    <div class="flex mb3" style="gap:12px">
-      <div><label class="form-label">From Date</label><input class="inp" type="date" value="${isoToday()}"/></div>
-      <div><label class="form-label">To Date</label><input class="inp" type="date" value="${isoToday()}"/></div>
-      <div style="align-self:flex-end"><button class="btn btn-primary" onclick="navigate('graphical-display')">Refresh</button></div>
-    </div>
-    ${!patients.length ? `<div class="empty-state"><div style="font-size:40px;margin-bottom:12px">📊</div><div>No patients registered yet</div></div>` : `
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">
-      ${patients.map(p => `<div class="gcard" onclick="navigate('patient-clinical-history',{id:${p.id}})">
-        <div class="gcard-top">
-          <span class="badge" style="background:${(colMap[p.status || 'Reg'] || '#dc2626') + '18'};color:${colMap[p.status || 'Reg'] || '#dc2626'};border:1px solid ${(colMap[p.status || 'Reg'] || '#dc2626') + '33'};font-size:9px">${p.status || 'Reg'}</span>
-          <span class="col-mono" style="font-size:11px">${p.regNo}</span>
+      const d = id ? refDoctors.find(x => x.id === id) : null;
+      showModal(`
+        <div class="mb2">
+          <label class="form-label">Name <span style="color:#dc2626">*</span></label>
+          <input class="inp" id="rdm-name" value="${d?.name || ''}"/>
         </div>
-        <div class="gcard-name">${p.name}</div>
-        <div class="gcard-tests">${p.tests}</div>
-      </div>`).join('')}
-    </div>`}
-  </div>`;
+        <div class="g2 mb2">
+          <div><label class="form-label">Mobile</label>
+            <input class="inp" id="rdm-mob" value="${d?.mobile || ''}"/></div>
+          <div><label class="form-label">Email</label>
+            <input class="inp" id="rdm-email" value="${d?.email || ''}"/></div>
+        </div>
+        <div class="g2 mb2">
+          <div><label class="form-label">City</label>
+            <input class="inp" id="rdm-city" value="${d?.city || ''}"/></div>
+          <div><label class="form-label">Address</label>
+            <input class="inp" id="rdm-addr" value="${d?.address || ''}"/></div>
+        </div>
+        <div class="mb2"><label class="form-label">Rate List</label>
+          <select class="inp" id="rdm-rl">
+            <option value="">— None —</option>
+            ${rateLists.map(r => `<option value="${r.id}" ${d?.rateListId == r.id ? 'selected' : ''}>${r.name}</option>`).join('')}
+          </select>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-success" onclick="saveRD(${id || 'null'})">Save Doctor</button>
+        </div>
+      `, d ? 'Edit Doctor' : 'Add Referring Doctor', 'modal-md');
     }
-
-    // ════════════════════════════════════════════════════════
-    //  PRINT REPORT
-    // ════════════════════════════════════════════════════════
+    
     function renderPrintReport() {
       return `
   ${ph('Print Reports', 'Search, preview, and download patient test reports.')}
@@ -3187,36 +2957,8 @@ async function doLogin() {
       showModal(`<div><div style="font-weight:700;font-size:16px;margin-bottom:14px;color:var(--steel-700)">${test.code} — ${test.name}</div>${!test.parameters?.length ? '<div class="empty-state">No parameters configured.</div>' : `<div class="tbl-wrap"><table><thead><tr><th>Order</th><th>Sub-Heading</th><th>Name</th><th>Unit</th></tr></thead><tbody>${test.parameters.map((p, i) => `<tr><td class="col-mono">${p.order || i + 1}</td><td style="color:var(--text-muted);font-size:12px">${p.subheading || '—'}</td><td style="font-weight:600">${p.name}</td><td class="col-mono">${p.unit || '—'}</td></tr>`).join('')}</tbody></table></div>`}${addForm}<div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div></div>`, `Manage Parameters — ${test.code}`, 'modal-md');
     }
 
-    function addParamToTestInline(testId) {
-      const test = testCatalog.find(t => t.id === testId);
-      if (!test) return;
-      const name = document.getElementById('inline-param-name').value.trim();
-      const order = parseInt(document.getElementById('inline-param-order').value) || 1;
-      const subheading = document.getElementById('inline-param-subh').value.trim();
-      const unit = document.getElementById('inline-param-unit').value.trim();
-
-      if (!name) { showToast('Parameter name is required', 'error'); return; }
-
-      const newParam = { name, order, subheading, unit, id: Date.now() };
-
-      if (!test.parameters) test.parameters = [];
-      test.parameters.push(newParam);
-
-      if (!parametersCatalog.find(p => p.name.toLowerCase() === name.toLowerCase())) {
-        parametersCatalog.push({ name, order, code: '', defaultResult: '' });
-      }
-
-      fetch('/api/tests/' + testId + '/parameters', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newParam),
-      }).catch(e => console.log('Backend sync (simulated):', e));
-
-      showToast('Parameter added', 'success');
-      viewTestParams(testId);
-    }
+    
     function openTestModal(id) { const t = id ? testCatalog.find(x => x.id === id) : null; showModal(`<div style="display:flex;flex-direction:column;gap:14px"><div><label class="form-label">Department <span style="color:#dc2626">*</span></label><select class="inp" id="tm-dept"><option value="">— Select Department —</option>${departments.map(d => `<option value="${d}" ${t?.dept === d ? 'selected' : ''}>${d}</option>`).join('')}</select></div><div class="g2"><div><label class="form-label">Test Code (3–5 uppercase) <span style="color:#dc2626">*</span></label><input class="inp" id="tm-code" maxlength="5" value="${t?.code || ''}" style="text-transform:uppercase;font-family:'DM Mono',monospace" placeholder="e.g. CBC"/></div><div><label class="form-label">Short Code (2–3 Chars) <span style="color:#dc2626">*</span></label><input class="inp" id="tm-shortcode" maxlength="3" value="${t?.shortCode || ''}" style="text-transform:uppercase;font-family:'DM Mono',monospace" placeholder="CB"/></div></div><div class="g2"><div><label class="form-label">Test Name <span style="color:#dc2626">*</span></label><input class="inp" id="tm-name" value="${t?.name || ''}" placeholder="Full test name"/></div><div><label class="form-label">Sample Type <span style="color:#dc2626">*</span></label><select class="inp" id="tm-sampletype"><option value="">— Select —</option>${sampleTypes.map(s => `<option value="${s}" ${t?.sampleType === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div></div><div class="g3"><div><label class="form-label">Rate (₹) <span style="color:#dc2626">*</span></label><input class="inp" id="tm-rate" type="number" min="0" value="${t?.rate || ''}" placeholder="0"/></div><div><label class="form-label">TAT (Hours) <span style="color:#dc2626">*</span></label><input class="inp" id="tm-tat" type="number" min="0" value="${t?.tat || ''}" placeholder="24"/></div><div><label class="form-label">Test Type</label><select class="inp" id="tm-type"><option value="Test" ${t?.type === 'Test' ? 'selected' : ''}>Single Test</option><option value="Package" ${t?.type === 'Package' ? 'selected' : ''}>Package / Bundle</option></select></div></div><div style="background:var(--steel-25);border:1px solid var(--steel-150);border-radius:10px;padding:16px"><div class="form-label" style="margin-bottom:12px">Test Configuration</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><label class="tog-wrap"><label class="tog"><input type="checkbox" id="tm-singletest" ${t?.testConfig?.singleTest ? 'checked' : ''}><span class="tog-sl"></span></label>Single Test</label><label class="tog-wrap"><label class="tog"><input type="checkbox" id="tm-formtest" ${t?.testConfig?.formTesting ? 'checked' : ''}><span class="tog-sl"></span></label>Form Testing</label><label class="tog-wrap"><label class="tog"><input type="checkbox" id="tm-wordformat" ${t?.testConfig?.wordFormat ? 'checked' : ''}><span class="tog-sl"></span></label>Word Format</label><label class="tog-wrap"><label class="tog"><input type="checkbox" id="tm-showparams" ${t?.testConfig?.displayParams ? 'checked' : ''}><span class="tog-sl"></span></label>Display Parameters</label><label class="tog-wrap"><label class="tog"><input type="checkbox" id="tm-active" ${t?.testConfig?.active !== false ? 'checked' : ''}><span class="tog-sl"></span></label>Active</label></div></div><div><label class="form-label">Description / Notes</label><textarea class="inp" id="tm-desc" rows="2">${t?.description || ''}</textarea></div><div style="display:flex;justify-content:flex-end;gap:10px;margin-top:6px"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-success" onclick="saveTest(${id || 'null'})">💾 Save Test</button></div></div>`, t ? `Edit Test — ${t.code}` : 'Add New Test', 'modal-lg'); }
-    function saveTest(id) { const code = document.getElementById('tm-code')?.value.trim().toUpperCase(); const shortCode = document.getElementById('tm-shortcode')?.value.trim().toUpperCase(); const name = document.getElementById('tm-name')?.value.trim(); const dept = document.getElementById('tm-dept')?.value; const sampleType = document.getElementById('tm-sampletype')?.value; const rate = parseFloat(document.getElementById('tm-rate')?.value) || 0; const tat = parseFloat(document.getElementById('tm-tat')?.value) || 0; if (!code || code.length < 3 || code.length > 5 || !/^[A-Z]+$/.test(code)) { showToast('Test code must be 3–5 uppercase letters', 'error'); return; } if (!shortCode || shortCode.length < 2) { showToast('Short code must be 2–3 characters', 'error'); return; } if (!name) { showToast('Test name is required', 'error'); return; } if (!dept) { showToast('Please select a department', 'error'); return; } if (!sampleType) { showToast('Please select a sample type', 'error'); return; } if (!tat || tat <= 0) { showToast('Enter a valid TAT in hours', 'error'); return; } const dup = testCatalog.find(t => t.code === code && t.id !== id); if (dup) { showToast(`Code "${code}" already used by "${dup.name}"`, 'error'); return; } const payload = { code, shortCode, name, type: document.getElementById('tm-type')?.value, dept, sampleType, rate, tat, description: document.getElementById('tm-desc')?.value.trim(), testConfig: { singleTest: document.getElementById('tm-singletest')?.checked || false, formTesting: document.getElementById('tm-formtest')?.checked || false, wordFormat: document.getElementById('tm-wordformat')?.checked || false, displayParams: document.getElementById('tm-showparams')?.checked || false, active: document.getElementById('tm-active')?.checked !== false } }; if (id !== 'null') { const t = testCatalog.find(x => x.id === id); if (t) Object.assign(t, payload); showToast('Test updated', 'success'); } else { testCatalog.push({ id: Date.now(), ...payload, parameters: [], ranges: [], packageTests: [], formula: '', reportNotes: '' }); showToast('Test added', 'success'); } fetch(id !== 'null' ? '/api/tests/' + id : '/api/tests', { method: id !== 'null' ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(e => console.log('Backend sync (simulated):', e)); closeModal(); if (currentPage === 'test-master') { navigate('test-master'); } else { let i1 = document.getElementById('test-inp'); if (i1) { i1.value = name; searchTests(name); } let i2 = document.getElementById('pch-tinp'); if (i2) { i2.value = name; window.searchTestsPCH && searchTestsPCH(name); } } }
     function deleteTest(id) { if (!confirm('Delete this test?')) return; testCatalog = testCatalog.filter(t => t.id !== id); showToast('Test deleted'); navigate('test-master'); }
 
     // ── Parameters Tab ──
@@ -3356,33 +3098,7 @@ async function doLogin() {
       setTimeout(() => document.getElementById('pm-name')?.focus(), 80);
     }
 
-    function saveParamCat(paramIdx) {
-      const name = document.getElementById('pm-name')?.value.trim();
-      const order = parseInt(document.getElementById('pm-order')?.value) || 1;
-      const code = document.getElementById('pm-code')?.value.trim();
-      const defaultResult = document.getElementById('pm-default')?.value.trim();
-
-      if (!name) { showToast('Parameter name is required', 'error'); return; }
-
-      const param = { name, order, code, defaultResult };
-
-      if (paramIdx !== null && paramIdx !== 'null') {
-        parametersCatalog[paramIdx] = param;
-        showToast('Parameter updated', 'success');
-      } else {
-        parametersCatalog.push(param);
-        showToast('Parameter added', 'success');
-      }
-
-      fetch('/api/parameters', {
-        method: paramIdx !== null && paramIdx !== 'null' ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(param)
-      }).catch(e => console.log('Backend sync (simulated):', e));
-
-      closeModal();
-      navigate('test-master');
-    }
+    
 
     function deleteParamCat(idx) {
       if (!confirm(`Delete parameter "${parametersCatalog[idx]?.name}"?`)) return;
@@ -4409,85 +4125,6 @@ async function doLogin() {
 
     // ── Global data buses (declared in state block above) ──
     // ── Override saveRegistration to wire all downstream modules ──
-    function saveRegistration() {
-      const name = document.getElementById('reg-name')?.value.trim();
-      if (!name) { showToast('Patient name is required', 'error'); return; }
-      if (!selectedTests.length) { showToast('Please add at least one test', 'error'); return; }
-
-      const mobile = document.getElementById('reg-mob')?.value.trim();
-      const total = selectedTests.reduce((s, t) => s + (t.rate || 0), 0);
-      const paid = parseFloat(document.getElementById('bill-paid')?.value || 0);
-      const disc = parseFloat(document.getElementById('bill-disc')?.value || 0);
-      const discType = document.querySelector('input[name="disctype"]:checked')?.value || 'Amt';
-      const discAmt = discType === 'Pct' ? (total * disc / 100) : disc;
-      const afterDisc = total - discAmt;
-      const balance = Math.max(0, afterDisc - paid);
-      const payMode = document.querySelector('input[name="paytype"]:checked')?.value || 'Cash';
-      const regNoVal = String(regNextNum);
-      const patientId = Date.now();
-
-      const rec = {
-        id: patientId,
-        regNo: regNoVal,
-        name,
-        gender: document.getElementById('reg-gender')?.value || 'Male',
-        age: document.getElementById('reg-age')?.value || '',
-        ageUnit: document.getElementById('reg-ageunit')?.value || 'Years',
-        mobile,
-        email: document.getElementById('reg-email')?.value || '',
-        address: document.getElementById('reg-address')?.value || '',
-        center: document.getElementById('reg-ptype')?.value || 'OPD',
-        refDoc: refDoctors.find(d => d.id == document.getElementById('reg-refdoc')?.value)?.name || '',
-        tests: selectedTests.map(t => t.name).join(', '),
-        charges: total, paid, balance,
-        discount: discAmt,
-        paymentMode: payMode,
-        status: 'Reg',
-        ppid: patientId,
-        createdAt: new Date().toLocaleString(),
-        testResults: selectedTests.map(t => ({ testId: t.id, testName: t.name, result: '', authStatus: 'Pending', approvedBy: '', approvalTime: '', remarks: '' }))
-      };
-      patients.unshift(rec);
-      regNextNum++;
-
-      // ── Populate sampleQueue for Test Result Entry ──
-      const sqEntry = {
-        id: patientId,
-        seqNo: rec.regNo,
-        regNo: rec.regNo,
-        ppid: String(patientId).slice(-6),
-        patientName: name,
-        gender: rec.gender,
-        age: rec.age + ' ' + rec.ageUnit,
-        center: rec.center,
-        refDoc: rec.refDoc,
-        date: new Date().toLocaleDateString('en-GB') + ' ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-        tests: selectedTests.map(t => t.code),
-        resultStatus: 'pending',
-        panic: false,
-        results: {},
-      };
-      sampleQueue.unshift(sqEntry);
-
-      // ── Populate bills for Account Section ──
-      bills.push({
-        id: patientId,
-        regNo: rec.regNo,
-        patientId,
-        date: new Date().toISOString(),
-        center: rec.center,
-        refDoc: rec.refDoc,
-        total: total,
-        paid: paid,
-        balance: balance,
-        discount: discAmt,
-        method: payMode,
-        tests: selectedTests.map(t => ({ code: t.code, name: t.name, resultStatus: 'pending' })),
-      });
-
-      showToast(`Registration successful — Reg. No.: ${rec.regNo}`, 'success');
-      navigate('new-registration');
-    }
 
     // ── Also patch cycleStatus to update sampleQueue status ──
     function cycleStatus(id) {
@@ -5169,49 +4806,6 @@ async function doLogin() {
       if (el) { el.value = fmt(balance); el.style.color = balance > 0 ? '#dc2626' : '#15803d'; }
     }
 
-    function pbSaveBill(patientId, printAfter = false) {
-      const p = patients.find(x => x.id === patientId); if (!p) return;
-      const gross = parseFloat(p.charges || 0);
-      const other = parseFloat(document.getElementById('pb-other')?.value || 0);
-      const discVal = parseFloat(document.getElementById('pb-disc')?.value || 0);
-      const discType = document.querySelector('input[name="pb-dtype"]:checked')?.value || 'Amt';
-      const discAmt = discType === 'Pct' ? gross * discVal / 100 : discVal;
-      const paid = parseFloat(document.getElementById('pb-paid')?.value || 0);
-      const net = gross + other - discAmt;
-      const balance = Math.max(0, net - paid);
-      const payType = document.querySelector('input[name="pb-paytype"]:checked')?.value || 'Cash';
-
-      // Update patient record
-      p.paid = paid;
-      p.discount = discAmt;
-      p.balance = balance;
-      p.paymentMode = payType;
-
-      // Sync or add to bills[]
-      const existing = bills.find(b => b.regNo === p.regNo);
-      const billData = {
-        id: existing?.id || Date.now(), regNo: p.regNo, patientId: p.id,
-        date: new Date().toISOString(), center: p.center, refDoc: p.refDoc,
-        total: net, paid, balance, discount: discAmt, method: payType,
-        remark: document.getElementById('pb-remark')?.value || '',
-        tests: (p.testResults || []).map(t => ({ code: '', name: t.testName, resultStatus: 'pending' }))
-      };
-      if (existing) Object.assign(existing, billData);
-      else bills.push(billData);
-
-      // Add to cashEntries for daily cash
-      if (paid > 0) {
-        cashEntries.push({
-          id: Date.now(), date: new Date().toISOString(), regNo: p.regNo,
-          patientName: p.name, mobile: p.mobile || '', billNo: bills.length,
-          amtReceived: paid, method: payType, userName: currentUser.fullName || 'admin'
-        });
-      }
-
-      showToast(`Bill saved — ₹${fmt(paid)} received, Balance: ₹${fmt(balance)}`, 'success');
-      if (printAfter) showToast('Printing…', 'info');
-      navigate('bill-desk');
-    }
 
     // ════════════════════════════════════════════════════════
     //  BILLING — DAILY CASH

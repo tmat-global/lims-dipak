@@ -2328,11 +2328,13 @@
         <span style="font-size:17px;font-weight:700;color:#dc2626;font-family:'DM Mono',monospace" id="bill-balance">₹ 0</span>
       </div>
     </div>
-    <div class="flex-wrap">
-      <button class="btn btn-success" onclick="saveRegistration()">💾 Save &amp; Register</button>
+     <div class="flex-wrap">
+      <button class="btn btn-success" onclick="saveRegistration()">💾 Save </button>
       <button class="btn btn-outline-steel" onclick="showToast('Barcode generated!')">🏷 Barcode</button>
       <button class="btn btn-outline-steel" onclick="showToast('Card printed!')">💳 Card</button>
       <button class="btn btn-ghost" onclick="showToast('Printing...')">🖨 Print</button>
+      <button class="btn btn-ghost" onclick="showToast('Printing...')">Bill</button>
+      <button class="btn btn-ghost" onclick="showToast('Printing...')">Email</button>
     </div>
   </div>`;
     }
@@ -2550,70 +2552,326 @@
     }
 
     // ════════════════════════════════════════════════════════
-    //  PATIENT CLINICAL HISTORY
-    // ════════════════════════════════════════════════════════
-    function renderPatientClinicalHistory(data) {
-      const p = patients.find(x => x.id === data?.id) || {};
-      if (!p.id) return `<div class="card"><div class="empty-state" style="padding:40px">Patient record not found.</div></div>`;
-      return `
-  ${ph('Patient Record', 'Review and update patient information and test orders.')}
-  ${bc('Home', 'Front Desk', 'Patient Record')}
-  <div class="card">
-    <div style="display:grid;grid-template-columns:90px 1fr 120px 160px 150px;gap:12px" class="mb2">
-      <div><label class="form-label">Title</label><select class="inp"><option></option><option>Mr.</option><option>Mrs.</option><option>Ms.</option><option>Dr.</option></select></div>
-      <div><label class="form-label">Patient Name</label><input class="inp" value="${p.name || ''}"/></div>
-      <div><label class="form-label">Gender</label><input class="inp inp-readonly" value="${p.gender || 'Male'}" readonly/></div>
-      <div><label class="form-label">Age</label><div class="flex"><input class="inp" value="${p.age || ''}" type="number" style="width:80px"/><input class="inp inp-readonly" value="${p.ageUnit || 'Years'}" readonly/></div></div>
-      <div><label class="form-label">Date of Birth</label><input class="inp" type="date"/></div>
+//  PATIENT CLINICAL HISTORY  (Enhanced Edit Page)
+// ════════════════════════════════════════════════════════
+let pchSelectedTests = [];   // { id, code, name, type, rate, modifyRate }
+
+function renderPatientClinicalHistory(data) {
+  const p = patients.find(x => x.id === data?.id) || {};
+  if (!p.id) return `<div class="card"><div class="empty-state" style="padding:40px">Patient record not found.</div></div>`;
+
+  // Pre-populate pchSelectedTests from existing patient tests
+  pchSelectedTests = (p.tests || '').split(', ').filter(Boolean).map(tName => {
+    const found = testCatalog.find(t => t.name === tName);
+    return found
+      ? { id: found.id, code: found.code, name: found.name, type: found.type, rate: found.rate, modifyRate: found.rate }
+      : { id: Date.now() + Math.random(), code: '—', name: tName, type: 'Test', rate: 0, modifyRate: 0 };
+  });
+
+  // Gender → Title mapping
+  const gender = p.gender || 'Male';
+  const titleOptions = ['Mr', 'Mrs', 'Ms', 'Dr', 'Baby', 'Master', 'Miss'];
+  function autoTitle(g) {
+    if (g === 'Male') return 'Mr';
+    if (g === 'Female') return 'Mrs';
+    return 'Mr';
+  }
+  const currentTitle = p.title || autoTitle(gender);
+
+  return `
+${ph('Patient Clinical History', 'Review and update patient information and test orders.')}
+${bc('Home', 'Front Desk', 'Patient Clinical History')}
+<div class="card">
+
+  <!-- ── Row 1: Title + Name + Gender + Age + DOB ── -->
+  <div style="display:grid;grid-template-columns:90px 1fr 130px 200px 180px;gap:12px;margin-bottom:12px">
+    <div>
+      <label class="form-label">Title</label>
+      <select class="inp" id="pch-title" onchange="pchSyncTitle(this.value)">
+        ${titleOptions.map(t => `<option value="${t}" ${t === currentTitle ? 'selected' : ''}>${t}</option>`).join('')}
+      </select>
     </div>
-    <div class="g3 mb2">
-      <div><label class="form-label">Mobile</label><input class="inp" value="${p.mobile || ''}"/></div>
-      <div><label class="form-label">Email</label><input class="inp" type="email" value="${p.email || ''}"/></div>
-      <div><label class="form-label">Referring Doctor</label><input class="inp inp-readonly" value="${p.refDoc || ''}" readonly/></div>
+    <div>
+      <label class="form-label">Patient Name</label>
+      <input class="inp" id="pch-name" value="${p.name || ''}"/>
     </div>
-    <div class="g2 mb2">
-      <div><label class="form-label">Address</label><textarea class="inp" rows="2">${p.address || ''}</textarea></div>
-      <div><label class="form-label">Remarks</label><textarea class="inp" rows="2"></textarea></div>
+    <div>
+      <label class="form-label">Gender</label>
+      <select class="inp" id="pch-gender" onchange="pchGenderChange(this.value)">
+        <option ${gender === 'Male' ? 'selected' : ''}>Male</option>
+        <option ${gender === 'Female' ? 'selected' : ''}>Female</option>
+        <option ${gender === 'Other' ? 'selected' : ''}>Other</option>
+      </select>
     </div>
-    <div class="card-header">
-      <div class="card-title" style="font-size:13px">Tests Ordered</div>
-      <div class="search-wrap" style="width:240px">
-        <input class="inp" id="pch-tinp" placeholder="Add test…" oninput="searchTestsPCH(this.value)" autocomplete="off"/>
-        <div class="search-drop hidden" id="pch-tdrop"></div>
+    <div>
+      <label class="form-label">Age</label>
+      <div class="flex" style="gap:6px">
+        <input class="inp" id="pch-age" value="${p.age || ''}" type="number" style="width:75px"/>
+        <select class="inp" id="pch-ageunit">
+          <option ${(p.ageUnit || 'Years') === 'Years' ? 'selected' : ''}>Years</option>
+          <option ${p.ageUnit === 'Months' ? 'selected' : ''}>Months</option>
+          <option ${p.ageUnit === 'Days' ? 'selected' : ''}>Days</option>
+        </select>
       </div>
     </div>
-    <div class="tbl-wrap mb2">
-      <table><thead><tr><th></th><th>Code</th><th>Test Name</th><th>Type</th><th class="text-right">Rate</th></tr></thead>
-        <tbody id="pch-tbody">${(p.tests || '').split(', ').filter(Boolean).map((t, i) => `<tr>
-          <td><span style="color:#dc2626;cursor:pointer;font-size:16px" onclick="this.closest('tr').remove()">×</span></td>
-          <td class="col-mono">T${i + 1}</td><td>${t}</td><td><span class="tag">Test</span></td><td class="text-right">—</td>
-        </tr>`).join('')}</tbody>
-      </table>
+    <div>
+      <label class="form-label">Date of Birth</label>
+      <input class="inp" id="pch-dob" type="date" value="${p.dob || ''}"/>
     </div>
-    <div class="flex-wrap">
-      <button class="btn btn-ghost" onclick="navigate('clinical-history-edit')">← Back</button>
-      <button class="btn btn-success" onclick="showToast('Record saved!')">Save Record</button>
-      <button class="btn btn-outline-steel" onclick="navigate('test-result-entry')">🔬 Enter Results</button>
-      <button class="btn btn-ghost" onclick="showToast('Printing…')">🖨 Print</button>
-    </div>
-  </div>`;
-    }
-    function searchTestsPCH(val) {
-      const drop = document.getElementById('pch-tdrop');
-      if (!val) { drop.classList.add('hidden'); return; }
-      const res = testCatalog.filter(t => t.name.toLowerCase().includes(val.toLowerCase()));
-      if (!res.length) { drop.classList.add('hidden'); return; }
-      drop.innerHTML = res.map(t => `<div class="search-drop-item" onclick="addPCHTest(${t.id})"><span>${t.name}</span><span style="color:var(--text-faint);font-size:11px">₹${fmt(t.rate)}</span></div>`).join('');
-      drop.classList.remove('hidden');
-    }
-    function addPCHTest(id) {
-      const t = testCatalog.find(x => x.id === id); if (!t) return;
-      const tbody = document.getElementById('pch-tbody');
-      if (tbody) tbody.innerHTML += `<tr><td><span style="color:#dc2626;cursor:pointer;font-size:16px" onclick="this.closest('tr').remove()">×</span></td><td class="col-mono">${t.code}</td><td>${t.name}</td><td><span class="tag">${t.type}</span></td><td class="text-right mono">₹${fmt(t.rate)}</td></tr>`;
-      document.getElementById('pch-tinp').value = '';
-      document.getElementById('pch-tdrop').classList.add('hidden');
-    }
+  </div>
 
+  <!-- ── Row 2: Mobile + Email + Ref Doctor ── -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+    <div>
+      <label class="form-label">Mobile</label>
+      <input class="inp" id="pch-mobile" value="${p.mobile || ''}"/>
+    </div>
+    <div>
+      <label class="form-label">Email</label>
+      <input class="inp" id="pch-email" type="email" value="${p.email || ''}"/>
+    </div>
+    <div>
+      <label class="form-label">Referring Doctor</label>
+      <input class="inp" id="pch-refdoc" value="${p.refDoc || ''}" placeholder="Referring Doctor"/>
+    </div>
+  </div>
+
+  <!-- ── Row 3: Address + Remarks ── -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+    <div>
+      <label class="form-label">Address</label>
+      <textarea class="inp" id="pch-address" rows="2">${p.address || ''}</textarea>
+    </div>
+    <div>
+      <label class="form-label">Remarks</label>
+      <textarea class="inp" id="pch-remarks" rows="2">${p.remarks || ''}</textarea>
+    </div>
+  </div>
+
+  <!-- ── Tests Section ── -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;
+              padding-bottom:10px;border-bottom:1px solid var(--border-subtle)">
+    <div>
+      <span style="font-size:13px;font-weight:700;color:var(--text-primary)">
+        Select Test / Package
+      </span>
+      <span style="margin-left:12px;font-size:12.5px;color:var(--text-muted)">
+        * Total Amount = 
+        <strong id="pch-total-amt" style="color:var(--steel-600);font-family:'DM Mono',monospace">
+          ₹${fmt(pchSelectedTests.reduce((s, t) => s + (t.modifyRate || t.rate || 0), 0))}
+        </strong>
+      </span>
+    </div>
+    <div class="search-wrap" style="width:280px">
+      <input class="inp" id="pch-tinp" placeholder="Search test / package…"
+        oninput="searchTestsPCH(this.value)" autocomplete="off"/>
+      <div class="search-drop hidden" id="pch-tdrop"></div>
+    </div>
+  </div>
+
+  <!-- ── Total Amount box (like reference) ── -->
+  <div style="margin-bottom:14px">
+    <input class="inp inp-readonly" id="pch-total-box"
+      value="${pchSelectedTests.reduce((s, t) => s + (t.modifyRate || t.rate || 0), 0)}"
+      readonly style="max-width:200px;font-family:'DM Mono',monospace;font-weight:700;
+                       color:var(--steel-600);font-size:14px"/>
+  </div>
+
+  <!-- ── Tests Table ── -->
+  <div class="tbl-wrap mb3">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:70px">Action</th>
+          <th>Test/Package Code</th>
+          <th>Test/Package Name</th>
+          <th>Package/Test</th>
+          <th class="text-right">Test Rate</th>
+          <th style="width:130px">Modify Rate</th>
+        </tr>
+      </thead>
+      <tbody id="pch-tbody">${renderPCHTestRows()}</tbody>
+    </table>
+  </div>
+
+  <!-- ── Upload Section ── -->
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;
+              padding:12px 16px;background:var(--steel-25);border-radius:8px;
+              border:1px solid var(--border-subtle)">
+    <div style="display:flex;align-items:center;gap:8px">
+      <input type="file" id="pch-prescription" accept="image/*,.pdf"
+        style="font-size:12px" onchange="pchFileSelected(this,'prescription')"/>
+      <button class="btn btn-primary btn-sm" onclick="pchUpload('prescription')">
+        Upload Prescription
+      </button>
+      <div id="pch-pres-preview" style="width:44px;height:44px;border:1px dashed var(--border-medium);
+           border-radius:6px;display:flex;align-items:center;justify-content:center;
+           font-size:18px;color:var(--text-faint)">🖼</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <input type="file" id="pch-photo" accept="image/*"
+        style="font-size:12px" onchange="pchFileSelected(this,'photo')"/>
+      <button class="btn btn-primary btn-sm" onclick="pchUpload('photo')">
+        Upload Photo
+      </button>
+      <div id="pch-photo-preview" style="width:44px;height:44px;border:1px dashed var(--border-medium);
+           border-radius:6px;display:flex;align-items:center;justify-content:center;
+           font-size:18px;color:var(--text-faint)">📷</div>
+    </div>
+  </div>
+
+  <!-- ── Action Buttons (matching reference) ── -->
+  <div class="flex-wrap" style="gap:8px">
+    <button class="btn btn-ghost btn-sm" onclick="navigate('clinical-history-edit')">
+      ← Back
+    </button>
+    <button class="btn btn-success btn-sm" onclick="savePCHRecord(${p.id})">
+      💾 Save
+    </button>
+    <button class="btn btn-primary btn-sm" onclick="pchSampleBarcode(${p.id})">
+      🏷 Sample Type Wise Barcode
+    </button>
+    <button class="btn btn-primary btn-sm" onclick="pchPrintCard(${p.id})">
+      💳 Card
+    </button>
+    <button class="btn btn-primary btn-sm" onclick="pchDeptBarcode(${p.id})">
+      📋 Dept Wise Barcode
+    </button>
+    <button class="btn btn-primary btn-sm" onclick="navigate('bill-desk')">
+      💵 Bill Desk
+    </button>
+    <button class="btn btn-outline-steel btn-sm" onclick="navigate('test-result-entry')">
+      🔬 Enter Results
+    </button>
+    <button class="btn btn-outline-steel btn-sm" onclick="pchCapturePhoto()">
+      📸 Capture Photo
+    </button>
+    <button class="btn btn-ghost btn-sm" onclick="showToast('Printing…')">
+      🖨 Print
+    </button>
+  </div>
+
+</div>`;
+}
+
+// ── Title ↔ Gender sync ──
+function pchGenderChange(gender) {
+  const titleSel = document.getElementById('pch-title');
+  if (!titleSel) return;
+  if (gender === 'Male') titleSel.value = 'Mr';
+  else if (gender === 'Female') titleSel.value = 'Mrs';
+}
+function pchSyncTitle(title) {
+  const genderSel = document.getElementById('pch-gender');
+  if (!genderSel) return;
+  if (title === 'Mr' || title === 'Master') genderSel.value = 'Male';
+  else if (title === 'Mrs' || title === 'Ms' || title === 'Miss') genderSel.value = 'Female';
+}
+
+// ── Render test rows ──
+function renderPCHTestRows() {
+  if (!pchSelectedTests.length)
+    return '<tr><td colspan="6" class="empty-state" style="padding:20px;font-size:12px">Search and add tests above</td></tr>';
+  return pchSelectedTests.map((t, i) => `
+    <tr>
+      <td>
+        <span style="color:#dc2626;cursor:pointer;font-size:15px;font-weight:700;padding:2px 8px"
+          onclick="pchRemoveTest(${i})" title="Delete">Delete</span>
+      </td>
+      <td class="col-mono">${t.code}</td>
+      <td style="font-weight:600">${t.name}</td>
+      <td><span class="tag">${t.type || 'Test'}</span></td>
+      <td class="text-right mono">₹${fmt(t.rate)}</td>
+      <td>
+        <input class="range-inp" type="number" value="${t.modifyRate ?? t.rate}"
+          style="width:110px;text-align:center;border:2px solid var(--border-medium);border-radius:5px"
+          onchange="pchUpdateModifyRate(${i}, this.value)"
+          onfocus="this.style.borderColor='var(--steel-400)'"
+          onblur="this.style.borderColor='var(--border-medium)'"/>
+      </td>
+    </tr>`).join('');
+}
+
+// ── Modify rate change ──
+function pchUpdateModifyRate(idx, val) {
+  pchSelectedTests[idx].modifyRate = parseFloat(val) || 0;
+  pchRecalcTotal();
+}
+
+// ── Recalc total ──
+function pchRecalcTotal() {
+  const total = pchSelectedTests.reduce((s, t) => s + (parseFloat(t.modifyRate ?? t.rate) || 0), 0);
+  const el = document.getElementById('pch-total-amt');
+  const box = document.getElementById('pch-total-box');
+  if (el) el.textContent = '₹' + fmt(total);
+  if (box) box.value = total;
+}
+
+// ── Remove test ──
+function pchRemoveTest(idx) {
+  pchSelectedTests.splice(idx, 1);
+  const tbody = document.getElementById('pch-tbody');
+  if (tbody) tbody.innerHTML = renderPCHTestRows();
+  pchRecalcTotal();
+}
+
+// ── Save record ──
+function savePCHRecord(patientId) {
+  const p = patients.find(x => x.id === patientId);
+  if (!p) return;
+  p.name  = document.getElementById('pch-name')?.value.trim() || p.name;
+  p.gender = document.getElementById('pch-gender')?.value || p.gender;
+  p.age   = document.getElementById('pch-age')?.value || p.age;
+  p.ageUnit = document.getElementById('pch-ageunit')?.value || p.ageUnit;
+  p.mobile = document.getElementById('pch-mobile')?.value.trim() || p.mobile;
+  p.email  = document.getElementById('pch-email')?.value.trim() || p.email;
+  p.address = document.getElementById('pch-address')?.value.trim() || p.address;
+  p.tests  = pchSelectedTests.map(t => t.name).join(', ');
+  p.charges = pchSelectedTests.reduce((s, t) => s + (parseFloat(t.modifyRate ?? t.rate) || 0), 0);
+
+  // Sync to backend
+  apiFetch('/api/v1/patients/' + patientId, {
+    method: 'PUT',
+    body: JSON.stringify({
+      name: p.name, gender: p.gender, age: parseInt(p.age) || 0,
+      ageUnit: p.ageUnit, mobile: p.mobile, email: p.email, address: p.address
+    })
+  }).then(r => {
+    if (r?.success) showToast('Record updated in database', 'success');
+    else showToast('Saved locally', 'warn');
+  }).catch(() => showToast('Saved locally — backend unreachable', 'warn'));
+
+  showToast('Patient record saved!', 'success');
+}
+
+// ── Upload helpers ──
+function pchFileSelected(input, type) {
+  const previewId = type === 'prescription' ? 'pch-pres-preview' : 'pch-photo-preview';
+  const preview = document.getElementById(previewId);
+  if (!preview || !input.files?.[0]) return;
+  const url = URL.createObjectURL(input.files[0]);
+  preview.innerHTML = `<img src="${url}" style="width:44px;height:44px;object-fit:cover;border-radius:5px"/>`;
+}
+function pchUpload(type) {
+  const inputId = type === 'prescription' ? 'pch-prescription' : 'pch-photo';
+  const f = document.getElementById(inputId)?.files?.[0];
+  if (!f) { showToast('Please select a file first', 'warn'); return; }
+  showToast((type === 'prescription' ? 'Prescription' : 'Photo') + ' uploaded: ' + f.name, 'success');
+}
+function pchCapturePhoto() {
+  showModal(`
+    <div style="text-align:center">
+      <div style="font-size:48px;margin-bottom:14px">📸</div>
+      <p style="color:var(--text-muted);margin-bottom:16px">Camera capture requires device permission.</p>
+      <button class="btn btn-primary" onclick="closeModal()">Open Camera</button>
+      &nbsp;
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  `, 'Capture Photo', 'modal-sm');
+}
+function pchSampleBarcode(id) { showToast('Generating sample-type wise barcode…', 'info'); }
+function pchPrintCard(id) { showToast('Printing patient card…', 'info'); }
+function pchDeptBarcode(id) { showToast('Generating department wise barcode…', 'info'); }
     // ════════════════════════════════════════════════════════
     //  REF DOCTOR
     // ════════════════════════════════════════════════════════
