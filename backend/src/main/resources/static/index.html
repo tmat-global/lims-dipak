@@ -1984,12 +1984,17 @@
         ]
       },
       {
-        id: 'reporting', icon: '📋', label: 'Reporting', sec: 'REPORTING', children: [
-          { label: 'Test Result Entry', path: 'test-result-entry' },
-          { label: 'Authorize Report', path: 'authorize-report' },
-          { label: 'Report Preview', path: 'dashboard' },
-        ]
-      },
+         id: 'reporting', icon: '📋', label: 'Reporting', sec: 'REPORTING', children: [
+         { label: 'Test Result Entry',  path: 'test-result-entry' },
+         { label: 'Authorize Report',   path: 'authorize-report' },
+         { label: 'Report Preview',     path: 'print-report' },
+          { label: 'TAT Testwise',       path: 'tat-testwise' },
+          { label: 'TAT Patient Wise',   path: 'tat-patientwise' },
+          { label: 'Worksheet',          path: 'worksheet' },
+          { label: 'Pending Report',     path: 'pending-report' },
+          { label: 'Panic Register',     path: 'panic-register' },
+        ] 
+    },
       {
         id: 'billing', icon: '💳', label: 'Billing', children: [
           { label: 'Bill Desk', path: 'bill-desk' },
@@ -2079,6 +2084,12 @@
       'add-banner': renderAddBanner, 'add-routine': renderAddRoutine,
       'add-machine': renderAddMachine, 'machine-map': renderMachineMap,
       'sql-backup': renderSQLBackup,
+      'tat-testwise': renderTATTestwise,
+      'tat-patientwise': renderTATPatientwise,
+      'worksheet': () => '<div class="empty-state" style="padding:40px;font-size:18px;">Worksheet under construction</div>',
+      'pending-report': renderPendingReport,
+      'panic-register': renderPanicRegister,
+      'worksheet': renderWorksheet,
     };
     let pageData = null;
 
@@ -2380,6 +2391,118 @@
     <td><span style="color:#dc2626;cursor:pointer;font-size:18px;line-height:1" onclick="removeTest(${t.id})">×</span></td>
   </tr>`).join('');
     }
+
+// ════════════════════════════════════════════════════════
+//  QUICK TEST — connects to Lab Routines
+// ════════════════════════════════════════════════════════
+function addQuickTest() {
+  const activeRoutines = routines.filter(r => r.active);
+
+  if (!activeRoutines.length) {
+    showToast('No active routines found. Add routines in Master → Add Routine.', 'warn');
+    return;
+  }
+
+  const routineRows = activeRoutines.map(r => {
+    // parse test codes from routine
+    const codes = (r.tests || '').split(',').map(c => c.trim()).filter(Boolean);
+    const matchedTests = codes.map(code => testCatalog.find(t => t.code === code)).filter(Boolean);
+    const totalRate = matchedTests.reduce((s, t) => s + (t.rate || 0), 0);
+
+    return `
+      <div style="border:1px solid var(--border-subtle);border-radius:10px;
+                  padding:14px 16px;margin-bottom:10px;cursor:pointer;
+                  transition:all .15s;background:#fff"
+           onmouseover="this.style.borderColor='var(--steel-400)';this.style.background='var(--steel-25)'"
+           onmouseout="this.style.borderColor='var(--border-subtle)';this.style.background='#fff'"
+           onclick="applyRoutine(${r.id})">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="background:var(--steel-100);color:var(--steel-700);
+                         border-radius:6px;padding:3px 10px;font-size:11px;
+                         font-weight:700;font-family:'DM Mono',monospace">${r.code}</span>
+            <span style="font-weight:700;font-size:13.5px;color:var(--text-primary)">${r.name}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:11px;color:var(--text-muted)">🕐 ${r.time}</span>
+            <span style="font-size:12px;font-weight:700;color:var(--steel-600);
+                         font-family:'DM Mono',monospace">₹${fmt(totalRate)}</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${matchedTests.length
+            ? matchedTests.map(t => `
+                <span style="background:var(--steel-50);border:1px solid var(--steel-200);
+                             border-radius:5px;padding:2px 9px;font-size:11px;
+                             font-weight:600;color:var(--steel-700)">
+                  ${t.name}
+                  <span style="color:var(--text-faint);margin-left:4px">₹${fmt(t.rate)}</span>
+                </span>`).join('')
+            : `<span style="font-size:12px;color:var(--text-faint);font-style:italic">
+                 No matching tests found in catalog
+               </span>`
+          }
+        </div>
+        ${matchedTests.length ? `
+        <div style="margin-top:10px;text-align:right">
+          <span style="font-size:11px;color:var(--steel-500);font-weight:600">
+            Click to add all ${matchedTests.length} test${matchedTests.length > 1 ? 's' : ''} →
+          </span>
+        </div>` : ''}
+      </div>`;
+  }).join('');
+
+  showModal(`
+    <div>
+      <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:16px;
+                  padding:10px 14px;background:var(--steel-25);border-radius:8px;
+                  border:1px solid var(--border-subtle)">
+        ⚡ Select a routine to instantly add all its tests to the registration.
+        You can manage routines from <strong>Master → Add Routine</strong>.
+      </div>
+      ${routineRows}
+    </div>
+  `, '⚡ Quick Test — Select Routine', 'modal-md');
+}
+
+function applyRoutine(routineId) {
+  const routine = routines.find(r => r.id === routineId);
+  if (!routine) return;
+
+  const codes = (routine.tests || '').split(',').map(c => c.trim()).filter(Boolean);
+  const matched = codes.map(code => testCatalog.find(t => t.code === code)).filter(Boolean);
+
+  if (!matched.length) {
+    showToast('No matching tests found in catalog for this routine', 'warn');
+    closeModal();
+    return;
+  }
+
+  let added = 0;
+  let skipped = 0;
+
+  matched.forEach(t => {
+    if (selectedTests.find(x => x.id === t.id)) {
+      skipped++;
+    } else {
+      selectedTests.push(t);
+      added++;
+    }
+  });
+
+  updateTestsTable();
+  recalcBill();
+  closeModal();
+
+  if (added > 0 && skipped > 0) {
+    showToast(`✅ Added ${added} test${added > 1 ? 's' : ''} from "${routine.name}" (${skipped} already added)`, 'info');
+  } else if (added > 0) {
+    showToast(`✅ Added ${added} test${added > 1 ? 's' : ''} from "${routine.name}"`, 'success');
+  } else {
+    showToast(`All tests from "${routine.name}" are already added`, 'warn');
+  }
+}
+
     function recalcBill() {
       const total = selectedTests.reduce((s, t) => s + (t.rate || 0), 0);
       const other = parseFloat(document.getElementById('bill-other')?.value || 0);
@@ -3104,6 +3227,400 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
     // ════════════════════════════════════════════════════════
     //  USER MANAGEMENT
     // ════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════
+    //  TAT TESTWISE REPORT
+    // ════════════════════════════════════════════════════════
+    function renderTATTestwise() {
+      setTimeout(() => loadTATData('testwise'), 100);
+      return `
+  ${ph('TAT Testwise Report', 'Turnaround time analysis grouped by test.')}
+  ${bc('Home', 'Reporting', 'TAT Testwise')}
+  <div class="card mb2" style="padding:14px 18px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span>📅</span>
+        <input class="inp" type="date" id="tat-tw-from" value="${isoToday()}" style="flex:1"/>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span>📅</span>
+        <input class="inp" type="date" id="tat-tw-to" value="${isoToday()}" style="flex:1"/>
+      </div>
+      <input class="inp" id="tat-tw-test" placeholder="Enter Test Name"/>
+      <input class="inp" id="tat-tw-regno" placeholder="Enter Reg No"/>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="loadTATData('testwise')">Search</button>
+      <button class="btn btn-ghost" onclick="window.print()">🖨 Report</button>
+    </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="tbl-wrap">
+      <table style="font-size:12.5px">
+        <thead>
+          <tr style="background:#1a3a5c;color:#fff">
+            <th>PatRegID</th><th>Patient Name</th>
+            <th>Register Date Time</th><th>Report Date Time</th>
+            <th>Test Name</th><th>TAT Duration</th><th>Unit</th><th>TAT Status</th>
+          </tr>
+        </thead>
+        <tbody id="tat-tw-tbody">
+          <tr><td colspan="8" class="empty-state" style="padding:28px">Click Search to load TAT data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  TAT PATIENT WISE REPORT
+    // ════════════════════════════════════════════════════════
+    function renderTATPatientwise() {
+      setTimeout(() => loadTATData('patientwise'), 100);
+      return `
+  ${ph('TAT Report Patient Wise', 'Turnaround time analysis per patient registration.')}
+  ${bc('Home', 'Reporting', 'TAT Patient Wise')}
+  <div class="card mb2" style="padding:14px 18px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span>📅</span>
+        <input class="inp" type="date" id="tat-pw-from" value="${isoToday()}" style="flex:1"/>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span>📅</span>
+        <input class="inp" type="date" id="tat-pw-to" value="${isoToday()}" style="flex:1"/>
+      </div>
+      <input class="inp" id="tat-pw-name" placeholder="Enter Patient Name"/>
+      <input class="inp" id="tat-pw-regno" placeholder="Enter Reg No"/>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="loadTATData('patientwise')">Search</button>
+      <button class="btn btn-ghost" onclick="window.print()">🖨 Report</button>
+    </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="tbl-wrap">
+      <table style="font-size:12.5px">
+        <thead>
+          <tr style="background:#1a3a5c;color:#fff">
+            <th>PatRegID</th><th>Patient Name</th>
+            <th>Register Date Time</th><th>Report Date Time</th>
+            <th>Test Name</th><th>TAT Duration</th><th>Unit</th><th>TAT Status</th>
+          </tr>
+        </thead>
+        <tbody id="tat-pw-tbody">
+          <tr><td colspan="8" class="empty-state" style="padding:28px">Click Search to load TAT data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+    }
+
+    function toISODate(ddmmyyyy) {
+      if (!ddmmyyyy) return isoToday() + 'T00:00:00';
+      // Handle both dd-mm-yyyy and yyyy-mm-dd formats
+      if (ddmmyyyy.includes('-') && ddmmyyyy.split('-')[0].length === 4) {
+        return ddmmyyyy + 'T00:00:00'; // already yyyy-mm-dd
+      }
+      const parts = ddmmyyyy.split('-');
+      if (parts.length === 3) return parts[2]+'-'+parts[1]+'-'+parts[0]+'T00:00:00';
+      return ddmmyyyy + 'T00:00:00';
+    }
+
+    async function loadTATData(mode) {
+      const prefix = mode === 'testwise' ? 'tat-tw' : 'tat-pw';
+      const tbody = document.getElementById(prefix+'-tbody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Loading...</td></tr>';
+
+      const from  = document.getElementById(prefix+'-from')?.value || isoToday();
+      const to    = document.getElementById(prefix+'-to')?.value   || isoToday();
+      const name  = document.getElementById(prefix+'-name')?.value || '';
+      const test  = document.getElementById(prefix+'-test')?.value || '';
+      const regno = document.getElementById(prefix+'-regno')?.value|| '';
+
+      try {
+        const token = authToken || localStorage.getItem('lis_token') || '';
+        const params = new URLSearchParams({ from: toISODate(from), to: toISODate(to).replace('T00:00:00','T23:59:59'), page:0, size:200 });
+        if (name)  params.append('patientName', name);
+        if (regno) params.append('regNo', regno);
+
+        const res  = await fetch('http://localhost:8081/api/v1/registrations?'+params,
+          { headers: { 'Authorization': 'Bearer '+token } });
+        const data = await res.json();
+        const regs = (data.success && data.data) ? (data.data.content||[]) : [];
+
+        let rows = [];
+        regs.forEach(reg => {
+          (reg.tests||[]).forEach(t => {
+            if (test && !t.name.toLowerCase().includes(test.toLowerCase())) return;
+            rows.push({
+              regNo: reg.regNo,
+              patientName: reg.patient?.name||'',
+              regDateTime: reg.createdAt||'',
+              reportDateTime: reg.status==='COMPLETED' ? reg.createdAt : '',
+              testName: t.name,
+              tatDuration: 480,
+              unit: 'Min',
+              tatStatus: 'TAT Achieve'
+            });
+          });
+        });
+
+        if (!tbody) return;
+        tbody.innerHTML = rows.length ? rows.map((r,i) =>
+          '<tr style="background:'+(i%2===0?'#f0f7fc':'#fff')+'">' +
+          '<td class="col-mono">'+r.regNo+'</td>' +
+          '<td style="font-weight:600">'+r.patientName+'</td>' +
+          '<td style="font-size:11px">'+(r.regDateTime?r.regDateTime.replace('T',' ').substring(0,16):'—')+'</td>' +
+          '<td style="font-size:11px">'+(r.reportDateTime?r.reportDateTime.replace('T',' ').substring(0,16):'')+'</td>' +
+          '<td style="font-weight:600;color:#1e40af">'+r.testName+'</td>' +
+          '<td class="col-mono" style="text-align:center">'+r.tatDuration+'</td>' +
+          '<td style="text-align:center">'+r.unit+'</td>' +
+          '<td><span style="background:#dcfce7;color:#15803d;border-radius:5px;padding:2px 10px;font-size:11px;font-weight:700">'+r.tatStatus+'</span></td>' +
+          '</tr>'
+        ).join('') :
+        '<tr><td colspan="8" class="empty-state" style="padding:28px">No TAT data found.</td></tr>';
+
+      } catch(e) {
+        console.error('TAT error:', e);
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Error loading data.</td></tr>';
+      }
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  WORKSHEET
+    // ════════════════════════════════════════════════════════
+    function renderWorksheet() {
+      setTimeout(() => loadWorksheetData(), 100);
+      return `
+  ${ph('Worksheet', 'Daily lab worksheet — tests pending processing.')}
+  ${bc('Home', 'Reporting', 'Worksheet')}
+  <div class="card mb2" style="padding:14px 18px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:12px;align-items:flex-end">
+      <div>
+        <label class="form-label">From Date</label>
+        <input class="inp" type="date" id="wks-from" value="${isoToday()}"/>
+      </div>
+      <div>
+        <label class="form-label">To Date</label>
+        <input class="inp" type="date" id="wks-to" value="${isoToday()}"/>
+      </div>
+      <div>
+        <label class="form-label">Department</label>
+        <select class="inp" id="wks-dept">
+          <option value="">All Departments</option>
+          ${departments.map(d=>'<option>'+d+'</option>').join('')}
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Patient Name</label>
+        <input class="inp" id="wks-name" placeholder="Enter Patient Name"/>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="loadWorksheetData()">Search</button>
+        <button class="btn btn-ghost" onclick="window.print()">🖨 Print</button>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="tbl-wrap">
+      <table style="font-size:12.5px">
+        <thead>
+          <tr style="background:#1a3a5c;color:#fff">
+            <th>#</th><th>Reg No</th><th>Patient Name</th><th>Gender</th>
+            <th>Age</th><th>Test Name</th><th>Department</th>
+            <th>Sample Type</th><th>Reg Date</th><th>Status</th><th>Ref Doctor</th>
+          </tr>
+        </thead>
+        <tbody id="wks-tbody">
+          <tr><td colspan="11" class="empty-state" style="padding:28px">Click Search to load worksheet...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+    }
+
+    async function loadWorksheetData() {
+      const tbody = document.getElementById('wks-tbody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="11" class="empty-state">Loading...</td></tr>';
+      const from = document.getElementById('wks-from')?.value || isoToday();
+      const to   = document.getElementById('wks-to')?.value   || isoToday();
+      const name = document.getElementById('wks-name')?.value || '';
+
+      try {
+        const token = authToken || localStorage.getItem('lis_token') || '';
+        const params = new URLSearchParams({ from: toISODate(from), to: toISODate(to).replace('T00:00:00','T23:59:59'), page:0, size:500 });
+        if (name) params.append('patientName', name);
+        const res  = await fetch('http://localhost:8081/api/v1/registrations?'+params,
+          { headers: { 'Authorization': 'Bearer '+token } });
+        const data = await res.json();
+        const regs = (data.success && data.data) ? (data.data.content||[]) : [];
+
+        let rows = [], idx = 0;
+        regs.forEach((reg, ri) => {
+          (reg.tests||[]).forEach(t => {
+            idx++;
+            const rowBg = ri%2===0?'#fff':'#fafcfe';
+            rows.push('<tr style="background:'+rowBg+'">' +
+              '<td style="color:#999">'+idx+'</td>' +
+              '<td class="col-mono">'+reg.regNo+'</td>' +
+              '<td style="font-weight:600">'+(reg.patient?.name||'')+'</td>' +
+              '<td>'+(reg.patient?.gender||'')+'</td>' +
+              '<td>'+(reg.patient?.age||'')+' '+(reg.patient?.ageUnit||'')+'</td>' +
+              '<td style="color:#1e40af;font-weight:600">'+t.name+'</td>' +
+              '<td style="font-size:11px">'+(t.department||t.type||'General')+'</td>' +
+              '<td><span class="tag">'+(t.sampleType||'Blood')+'</span></td>' +
+              '<td style="font-size:11px">'+(reg.createdAt||'').replace('T',' ').substring(0,16)+'</td>' +
+              '<td><span style="background:#15803d;color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">'+(t.status||'PENDING')+'</span></td>' +
+              '<td style="font-size:11px">'+(reg.refDoctor?.name||'Self')+'</td>' +
+            '</tr>');
+          });
+        });
+
+        if (tbody) tbody.innerHTML = rows.length ? rows.join('') :
+          '<tr><td colspan="11" class="empty-state" style="padding:28px">No data found.</td></tr>';
+      } catch(e) {
+        console.error('Worksheet error:', e);
+        if (tbody) tbody.innerHTML = '<tr><td colspan="11" class="empty-state">Error loading data.</td></tr>';
+      }
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  PENDING REPORT
+    // ════════════════════════════════════════════════════════
+    function renderPendingReport() {
+      setTimeout(() => loadPendingData(), 100);
+      return `
+  ${ph('Pending Report', 'View all pending test reports.')}
+  ${bc('Home', 'Reporting', 'Pending Report')}
+  <div class="card mb2" style="padding:14px 18px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span>📅</span>
+        <input class="inp" type="date" id="pend-from" value="${isoToday()}" style="width:180px"/>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span>📅</span>
+        <input class="inp" type="date" id="pend-to" value="${isoToday()}" style="width:180px"/>
+      </div>
+      <input class="inp" id="pend-name" placeholder="Patient Name" style="width:200px"/>
+      <button class="btn btn-primary" onclick="loadPendingData()">Search</button>
+      <button class="btn btn-ghost" onclick="window.print()">🖨 Report</button>
+    </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="tbl-wrap">
+      <table style="font-size:12.5px">
+        <thead>
+          <tr style="background:#1a3a5c;color:#fff">
+            <th>#</th><th>Reg No</th><th>Patient Name</th><th>Gender</th>
+            <th>Age</th><th>Ref Doctor</th><th>Center</th>
+            <th>Tests</th><th>Reg Date</th><th>Status</th><th>Mobile</th>
+          </tr>
+        </thead>
+        <tbody id="pend-tbody">
+          <tr><td colspan="11" class="empty-state" style="padding:28px">Click Search to load pending reports...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+    }
+
+    async function loadPendingData() {
+      const tbody = document.getElementById('pend-tbody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="11" class="empty-state">Loading...</td></tr>';
+      const from = document.getElementById('pend-from')?.value || isoToday();
+      const to   = document.getElementById('pend-to')?.value   || isoToday();
+      const name = document.getElementById('pend-name')?.value || '';
+
+      try {
+        const token = authToken || localStorage.getItem('lis_token') || '';
+        const params = new URLSearchParams({
+          from: toISODate(from), to: toISODate(to).replace('T00:00:00','T23:59:59'),
+          status: 'REGISTERED', page:0, size:200
+        });
+        if (name) params.append('patientName', name);
+        const res  = await fetch('http://localhost:8081/api/v1/registrations?'+params,
+          { headers: { 'Authorization': 'Bearer '+token } });
+        const data = await res.json();
+        const regs = (data.success && data.data) ? (data.data.content||[]) : [];
+
+        if (!tbody) return;
+        tbody.innerHTML = regs.length ? regs.map((reg,i) => {
+          const tests = (reg.tests||[]).map(t=>t.name).join(', ');
+          return '<tr style="background:'+(i%2===0?'#fff7ed':'#fff')+'">' +
+            '<td style="color:#999">'+(i+1)+'</td>' +
+            '<td class="col-mono" style="font-weight:700">'+reg.regNo+'</td>' +
+            '<td style="font-weight:600">'+(reg.patient?.name||'')+'</td>' +
+            '<td>'+(reg.patient?.gender||'')+'</td>' +
+            '<td>'+(reg.patient?.age||'')+' '+(reg.patient?.ageUnit||'')+'</td>' +
+            '<td style="font-size:11px">'+(reg.refDoctor?.name||'Self')+'</td>' +
+            '<td>'+(reg.center||'')+'</td>' +
+            '<td style="font-size:11px;max-width:200px">'+tests+'</td>' +
+            '<td style="font-size:11px">'+(reg.createdAt||'').replace('T',' ').substring(0,16)+'</td>' +
+            '<td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">'+reg.status+'</span></td>' +
+            '<td style="font-family:monospace">'+(reg.patient?.mobile||'')+'</td>' +
+          '</tr>';
+        }).join('') :
+        '<tr><td colspan="11" class="empty-state" style="padding:28px">No pending reports found.</td></tr>';
+      } catch(e) {
+        if (tbody) tbody.innerHTML = '<tr><td colspan="11" class="empty-state">Error loading data.</td></tr>';
+      }
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  PANIC REGISTER
+    // ════════════════════════════════════════════════════════
+    function renderPanicRegister() {
+      return `
+  ${ph('Panic Register', 'Critical / panic value test results requiring immediate attention.')}
+  ${bc('Home', 'Reporting', 'Panic Register')}
+  <div class="card mb2" style="padding:14px 18px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span>📅</span>
+        <input class="inp" type="date" id="panic-from" value="${isoToday()}" style="width:180px"/>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span>📅</span>
+        <input class="inp" type="date" id="panic-to" value="${isoToday()}" style="width:180px"/>
+      </div>
+      <input class="inp" id="panic-name" placeholder="Enter Patient Name" style="width:200px"/>
+      <input class="inp" id="panic-test" placeholder="Enter Test Name" style="width:200px"/>
+      <button class="btn btn-primary" onclick="showToast('Loading panic register...','info')">Search</button>
+    </div>
+  </div>
+  <div style="background:#fee2e2;border:1px solid #fecaca;border-radius:10px;
+              padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+    <span style="font-size:28px">🚨</span>
+    <div>
+      <div style="font-weight:700;font-size:13.5px;color:#dc2626">Panic Values Alert</div>
+      <div style="font-size:12px;color:#991b1b;margin-top:2px">
+        Patients with critical test values outside panic ranges require immediate attention.
+      </div>
+    </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="tbl-wrap">
+      <table style="font-size:12.5px">
+        <thead>
+          <tr style="background:#991b1b;color:#fff">
+            <th>#</th><th>Reg No</th><th>Patient Name</th><th>Gender</th>
+            <th>Age</th><th>Mobile</th><th>Test Name</th>
+            <th>Result</th><th>Panic Low</th><th>Panic High</th>
+            <th>Unit</th><th>Authorized By</th><th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="13" class="empty-state" style="padding:40px">
+            <div style="font-size:40px;margin-bottom:10px">✅</div>
+            No panic values found — all results are within safe ranges.
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+    }
+
     function renderUserManagement() {
       return `
   ${ph('User Management', 'Manage system users, roles, and access permissions.')}

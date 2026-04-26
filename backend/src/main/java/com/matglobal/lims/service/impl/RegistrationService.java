@@ -30,6 +30,9 @@ public class RegistrationService {
     private final TestRepository testRepository;
     private final ReferringDoctorRepository refDoctorRepository;
 
+    // ── NEW: inject EmailService ──────────────────────────────────────────────
+    private final EmailService emailService;
+
     @Value("${app.reg.start-number:300001}")
     private long startNumber;
 
@@ -50,28 +53,45 @@ public class RegistrationService {
         return String.valueOf(regSequence.get());
     }
 
+    // ═════════════════════════════════════════════════════════════════════════
+    // CREATE REGISTRATION → sends Registration Confirmation Email
+    // ═════════════════════════════════════════════════════════════════════════
     public RegistrationResponse create(RegistrationRequest req) {
+
         Patient patient = patientRepository.findById(req.getPatientId())
                 .orElseThrow(() -> new ResourceNotFoundException("Patient", req.getPatientId()));
 
         ReferringDoctor refDoc = req.getRefDoctorId() != null
-                ? refDoctorRepository.findById(req.getRefDoctorId()).orElse(null) : null;
+                ? refDoctorRepository.findById(req.getRefDoctorId()).orElse(null)
+                : null;
 
         List<Test> tests = testRepository.findAllById(req.getTestIds());
-        BigDecimal total = tests.stream().map(Test::getRate)
-                .filter(r -> r != null).reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal otherCharges = req.getOtherCharges() != null ? req.getOtherCharges() : BigDecimal.ZERO;
+        BigDecimal total = tests.stream()
+                .map(Test::getRate)
+                .filter(r -> r != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal otherCharges = req.getOtherCharges() != null
+                ? req.getOtherCharges()
+                : BigDecimal.ZERO;
+
         BigDecimal discountAmt = BigDecimal.ZERO;
-        if (req.getDiscountAmount() != null && req.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
+        if (req.getDiscountAmount() != null
+                && req.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
             if ("Per%".equals(req.getDiscountType())) {
-                discountAmt = total.multiply(req.getDiscountAmount()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                discountAmt = total
+                        .multiply(req.getDiscountAmount())
+                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
             } else {
                 discountAmt = req.getDiscountAmount();
             }
         }
+
         BigDecimal netAmount = total.add(otherCharges).subtract(discountAmt);
-        BigDecimal paidAmount = req.getPaidAmount() != null ? req.getPaidAmount() : BigDecimal.ZERO;
+        BigDecimal paidAmount = req.getPaidAmount() != null
+                ? req.getPaidAmount()
+                : BigDecimal.ZERO;
         BigDecimal balance = netAmount.subtract(paidAmount).max(BigDecimal.ZERO);
 
         Registration reg = new Registration();
@@ -104,8 +124,29 @@ public class RegistrationService {
             reg.getRegistrationTests().add(rt);
         }
 
-        return toResponse(registrationRepository.save(reg));
+        Registration saved = registrationRepository.save(reg);
+
+        // ── NEW: Send Registration Confirmation Email (async — non-blocking) ──
+        // Only sends if patient has an email address on record
+        String testNames = tests.stream()
+                .map(Test::getName)
+                .collect(Collectors.joining(", "));
+
+        String refDocName = (refDoc != null) ? refDoc.getName() : "";
+
+        emailService.sendRegistrationConfirmation(
+                patient.getEmail(),
+                patient.getName(),
+                saved.getRegNo(),
+                testNames,
+                netAmount.toPlainString(),
+                refDocName);
+        // ─────────────────────────────────────────────────────────────────────
+
+        return toResponse(saved);
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
     public RegistrationResponse findById(Long id) {
@@ -114,38 +155,79 @@ public class RegistrationService {
     }
 
     @Transactional(readOnly = true)
-    public Page<RegistrationResponse> search(LocalDateTime from, LocalDateTime to,
-            String patientName, String mobile, String regNo, String status, int page, int size) {
+    public Page<RegistrationResponse> search(
+            LocalDateTime from, LocalDateTime to,
+            String patientName, String mobile,
+            String regNo, String status,
+            int page, int size) {
+
         Registration.RegistrationStatus statusEnum = (status != null && !status.isEmpty())
-                ? Registration.RegistrationStatus.valueOf(status) : null;
-        if (from == null) from = LocalDateTime.now().with(LocalTime.MIN);
-        if (to == null) to = LocalDateTime.now().with(LocalTime.MAX);
-        return registrationRepository.searchRegistrations(from, to, patientName, mobile, regNo, statusEnum,
+                ? Registration.RegistrationStatus.valueOf(status)
+                : null;
+
+        if (from == null)
+            from = LocalDateTime.now().with(LocalTime.MIN);
+        if (to == null)
+            to = LocalDateTime.now().with(LocalTime.MAX);
+
+        return registrationRepository.searchRegistrations(
+                from, to, patientName, mobile, regNo, statusEnum,
                 PageRequest.of(page, size, Sort.by("createdAt").descending()))
                 .map(this::toResponse);
     }
 
+    // ═════════════════════════════════════════════════════════════════════════
+    // UPDATE STATUS → sends Report Ready Email when status = PRINTED
+    // ═════════════════════════════════════════════════════════════════════════
     public RegistrationResponse updateStatus(Long id, String newStatus) {
+
         Registration reg = registrationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Registration", id));
+
         reg.setStatus(Registration.RegistrationStatus.valueOf(newStatus));
-        return toResponse(registrationRepository.save(reg));
+        Registration saved = registrationRepository.save(reg);
+
+        // ── NEW: Send Report Ready Email when status becomes PRINTED ─────────
+        if ("PRINTED".equalsIgnoreCase(newStatus)) {
+
+            String patientEmail = saved.getPatient().getEmail();
+            String patientName = saved.getPatient().getName();
+            String regNo = saved.getRegNo();
+
+            String testNames = saved.getRegistrationTests().stream()
+                    .map(rt -> rt.getTest().getName())
+                    .collect(Collectors.joining(", "));
+
+            emailService.sendReportReadyNotification(
+                    patientEmail,
+                    patientName,
+                    regNo,
+                    testNames);
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+        return toResponse(saved);
     }
 
+    // ═════════════════════════════════════════════════════════════════════════
+    // toResponse helper — unchanged from original
+    // ═════════════════════════════════════════════════════════════════════════
     private RegistrationResponse toResponse(Registration r) {
-        List<RegistrationResponse.TestInfo> testInfos = r.getRegistrationTests().stream().map(rt -> {
-            RegistrationResponse.TestInfo ti = new RegistrationResponse.TestInfo();
-            ti.setId(rt.getTest().getId());
-            ti.setCode(rt.getTest().getCode());
-            ti.setName(rt.getTest().getName());
-            ti.setType(rt.getTest().getType());
-            ti.setRate(rt.getRate());
-            ti.setClientRate(rt.getClientRate());
-            ti.setStatus(rt.getStatus().name());
-            ti.setSampleType(rt.getTest().getSampleType());
-            ti.setDepartment(rt.getTest().getDepartment());
-            return ti;
-        }).collect(Collectors.toList());
+
+        List<RegistrationResponse.TestInfo> testInfos = r.getRegistrationTests().stream()
+                .map(rt -> {
+                    RegistrationResponse.TestInfo ti = new RegistrationResponse.TestInfo();
+                    ti.setId(rt.getTest().getId());
+                    ti.setCode(rt.getTest().getCode());
+                    ti.setName(rt.getTest().getName());
+                    ti.setType(rt.getTest().getType());
+                    ti.setRate(rt.getRate());
+                    ti.setClientRate(rt.getClientRate());
+                    ti.setStatus(rt.getStatus().name());
+                    ti.setSampleType(rt.getTest().getSampleType());
+                    ti.setDepartment(rt.getTest().getDepartment());
+                    return ti;
+                }).collect(Collectors.toList());
 
         RegistrationResponse.PatientInfo pi = new RegistrationResponse.PatientInfo();
         pi.setId(r.getPatient().getId());
