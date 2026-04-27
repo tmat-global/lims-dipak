@@ -4,6 +4,8 @@ import com.matglobal.lims.entity.Registration;
 import com.matglobal.lims.entity.RegistrationTest;
 import com.matglobal.lims.exception.ResourceNotFoundException;
 import com.matglobal.lims.repository.RegistrationRepository;
+import com.matglobal.lims.util.QRCodeUtil;
+import com.google.zxing.WriterException;
 import lombok.RequiredArgsConstructor;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
@@ -11,6 +13,9 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -28,7 +33,6 @@ public class ReportService {
         Registration reg = registrationRepository.findById(registrationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Registration", registrationId));
 
-        // Eagerly load all fields
         String patientName    = reg.getPatient().getName() != null ? reg.getPatient().getName() : "";
         String patientAddress = reg.getPatient().getAddress() != null ? reg.getPatient().getAddress() : "";
         String age            = reg.getPatient().getAge() + " " + reg.getPatient().getAgeUnit();
@@ -42,7 +46,26 @@ public class ReportService {
         String billedDT       = reg.getCreatedAt() != null ? reg.getCreatedAt().format(DTF) : "";
         String reportDT       = reg.getUpdatedAt() != null ? reg.getUpdatedAt().format(DTF) : billedDT;
 
-        // Parameters
+        // Build QR code content
+        String qrContent = "Patient: " + patientName + "\n" +
+                "Reg No: " + regNo + "\n" +
+                "ID: " + reg.getPatient().getId() + "\n" +
+                "Age: " + age + " | " + gender + "\n" +
+                "Contact: " + mobile + "\n" +
+                "Date: " + billedDT;
+
+        // Generate QR code image
+        BufferedImage qrImage = null;
+        try {
+            byte[] qrBytes = QRCodeUtil.generateQRCode(qrContent, 150, 150);
+            qrImage = ImageIO.read(new ByteArrayInputStream(qrBytes));
+        } catch (Exception e) {
+            // QR code generation failed - continue without it
+        }
+
+        // Logo path
+        String logoPath = new ClassPathResource("reports/logo.png").getURL().toString();
+
         Map<String, Object> params = new HashMap<>();
         params.put("patientId",       String.valueOf(reg.getPatient().getId()));
         params.put("medLabId",        regNo);
@@ -62,8 +85,9 @@ public class ReportService {
         params.put("regNo",           regNo);
         params.put("technicianName",  reg.getCreatedBy() != null ? reg.getCreatedBy() : "Lab Technician");
         params.put("labManagerName",  "Lab Manager");
+        params.put("logoPath",        logoPath);
+        params.put("qrCodeImage",     qrImage);
 
-        // Data rows
         List<Map<String, String>> rows = new ArrayList<>();
         for (RegistrationTest rt : reg.getRegistrationTests()) {
             Map<String, String> row = new HashMap<>();
@@ -77,7 +101,6 @@ public class ReportService {
             rows.add(row);
         }
 
-        // If no tests, add empty row
         if (rows.isEmpty()) {
             Map<String, String> row = new HashMap<>();
             row.put("department", ""); row.put("testName", "No tests found");

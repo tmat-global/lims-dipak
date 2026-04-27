@@ -56,7 +56,7 @@ public class Registration extends BaseEntity {
     @Builder.Default
     private RegistrationStatus status = RegistrationStatus.REGISTERED;
 
-    @OneToMany(mappedBy = "registration", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "registration", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @Builder.Default
     private List<RegistrationTest> registrationTests = new ArrayList<>();
 

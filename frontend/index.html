@@ -3183,6 +3183,616 @@ async function doLogin() {
     function renderMachineMap() { return `${ph('Machine Mapping', 'Map tests to instruments for automatic sample routing.')}${bc('Home', 'Master Configuration', 'Machine Map')}<div class="card"><div class="flex-wrap mb3" style="justify-content:space-between"><p style="color:var(--text-muted);font-size:12.5px">Configure which machine processes each test.</p><button class="btn btn-success" onclick="openMapModal(null)">+ Add Mapping</button></div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>Test Code</th><th>Test Name</th><th>Machine Code</th><th>Machine Name</th><th>Department</th><th>Actions</th></tr></thead><tbody>${machineMap.map((m, i) => `<tr><td style="color:var(--text-faint)">${i + 1}</td><td><span class="mmap-badge">${m.testCode}</span></td><td style="font-weight:600">${m.testName}</td><td class="col-mono">${m.machineCode}</td><td>${m.machineName}</td><td style="font-size:12px;color:var(--text-muted)">${machines.find(x => x.code === m.machineCode)?.dept || '—'}</td><td><div class="flex" style="gap:6px"><button class="btn btn-outline-steel btn-xs" onclick="openMapModal(${m.id})">Edit</button><button class="btn btn-danger btn-xs" onclick="machineMap=machineMap.filter(x=>x.id!==${m.id});navigate('machine-map')">Remove</button></div></td></tr>`).join('')}</tbody></table></div></div>`; }
     function openMapModal(id) { const m = id ? machineMap.find(x => x.id === id) : null; showModal(`<div class="mb2"><label class="form-label">Test</label><select class="inp" id="mapm-test"><option value="">— Select Test —</option>${testCatalog.map(t => `<option value="${t.id}" data-code="${t.code}" data-name="${t.name}" ${m?.testCode === t.code ? 'selected' : ''}>${t.name} (${t.code})</option>`).join('')}</select></div><div class="mb2"><label class="form-label">Machine</label><select class="inp" id="mapm-mach"><option value="">— Select Machine —</option>${machines.map(mc => `<option value="${mc.id}" data-code="${mc.code}" data-name="${mc.name}" ${m?.machineCode === mc.code ? 'selected' : ''}>${mc.name} (${mc.code})</option>`).join('')}</select></div><div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-success" onclick="saveMap(${id || 'null'})">Save Mapping</button></div>`, m ? 'Edit Mapping' : 'Add Mapping', 'modal-sm'); }
     function saveMap(id) { const tEl = document.getElementById('mapm-test'); const mEl = document.getElementById('mapm-mach'); const tOpt = tEl?.options[tEl.selectedIndex]; const mOpt = mEl?.options[mEl.selectedIndex]; if (!tEl?.value || !mEl?.value) { showToast('Select both test and machine', 'warn'); return; } const payload = { testCode: tOpt.dataset.code, testName: tOpt.dataset.name, machineCode: mOpt.dataset.code, machineName: mOpt.dataset.name }; if (id !== 'null') { const m = machineMap.find(x => x.id == id); if (m) Object.assign(m, payload); showToast('Updated'); } else { machineMap.push({ id: Date.now(), ...payload }); showToast('Added'); } closeModal(); navigate('machine-map'); }
+    // ════════════════════════════════════════════════════════
+//  TAT TESTWISE REPORT
+// ════════════════════════════════════════════════════════
+   function renderTATTestwise() {
+   const rows = getTATRows();
+   return `
+     ${ph('TAT Testwise Report', 'Turnaround time analysis grouped by test.')}
+      ${bc('Home', 'Reporting', 'TAT Testwise')}
+         <div class="card mb2" style="padding:14px 18px">
+           <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+             <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:16px">📅</span>
+           <input class="inp" type="date" id="tat-tw-from"
+        value="${new Date(Date.now()-7*864e5).toISOString().slice(0,10)}" style="flex:1"/>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:16px">📅</span>
+      <input class="inp" type="date" id="tat-tw-to"
+        value="${isoToday()}" style="flex:1"/>
+    </div>
+    <input class="inp" id="tat-tw-test" placeholder="Enter Test Name"/>
+    <input class="inp" id="tat-tw-regno" placeholder="Enter Reg No"/>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:14px">🕐</span>
+      <select class="inp" id="tat-tw-fromtime" style="width:180px">
+        <option value="">Select From Time</option>
+        ${Array.from({length:24},(_,i)=>`<option value="${i}:00">${String(i).padStart(2,'0')}:00</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:14px">🕐</span>
+      <select class="inp" id="tat-tw-totime" style="width:180px">
+        <option value="">Select To Time</option>
+        ${Array.from({length:24},(_,i)=>`<option value="${i}:00">${String(i).padStart(2,'0')}:00</option>`).join('')}
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="filterTATTestwise()">Click</button>
+    <button class="btn btn-outline-steel" onclick="showToast('Generating report…','info')">Report</button>
+  </div>
+</div>
+<div class="card" style="padding:0;overflow:hidden">
+  <div class="tbl-wrap">
+    <table style="font-size:12.5px">
+      <thead>
+        <tr>
+          <th>PatRegID</th>
+          <th>Patient Name</th>
+          <th>Register Date Time</th>
+          <th>Report Date Time</th>
+          <th>Test Name</th>
+          <th>TAT Duration</th>
+          <th>Duration</th>
+          <th>TAT Status</th>
+        </tr>
+      </thead>
+      <tbody id="tat-tw-tbody">${renderTATTestwiseRows(rows)}</tbody>
+    </table>
+  </div>
+</div>`;
+}
+
+function getTATRows() {
+  const rows = [];
+  patients.forEach(p => {
+    (p.tests || '').split(', ').filter(Boolean).forEach(testName => {
+      const t = testCatalog.find(x => x.name === testName);
+      const tatMins = t ? (t.tat || 480) : 480;
+      const tatDisplay = tatMins >= 1440
+        ? { val: Math.round(tatMins/1440), unit: 'Day' }
+        : { val: tatMins, unit: 'Min' };
+      rows.push({
+        regNo: p.regNo,
+        patientName: p.name,
+        regDateTime: p.createdAt || '—',
+        reportDateTime: p.status === 'Printed' ? (p.createdAt || '—') : '',
+        testName,
+        tatDuration: tatDisplay.val,
+        durationUnit: tatDisplay.unit,
+        tatStatus: 'TAT Achieve'
+      });
+    });
+  });
+  return rows;
+}
+
+function renderTATTestwiseRows(rows) {
+  if (!rows.length) return `<tr><td colspan="8" class="empty-state" style="padding:28px">
+    No data found. Register patients and add tests to see TAT data.
+  </td></tr>`;
+  return rows.map((r, i) => `
+    <tr style="background:${i%2===0?'#f0f7fc':'#fff'}">
+      <td class="col-mono">${r.regNo}</td>
+      <td style="font-weight:600">${r.patientName}</td>
+      <td style="font-size:11.5px">
+        ${r.regDateTime ? new Date(r.regDateTime).toLocaleString('en-GB') : '—'}
+      </td>
+      <td style="font-size:11.5px;color:var(--text-muted)">
+        ${r.reportDateTime ? new Date(r.reportDateTime).toLocaleString('en-GB') : ''}
+      </td>
+      <td style="font-weight:600;color:var(--steel-600)">${r.testName}</td>
+      <td class="col-mono" style="text-align:center">${r.tatDuration}</td>
+      <td style="text-align:center;color:var(--text-muted)">${r.durationUnit}</td>
+      <td>
+        <span style="background:#dcfce7;color:#15803d;border-radius:5px;
+                     padding:2px 10px;font-size:11px;font-weight:700">
+          ${r.tatStatus}
+        </span>
+      </td>
+    </tr>`).join('');
+}
+
+function filterTATTestwise() {
+  const testFilter = document.getElementById('tat-tw-test')?.value.toLowerCase();
+  const regFilter  = document.getElementById('tat-tw-regno')?.value;
+  let rows = getTATRows();
+  if (testFilter) rows = rows.filter(r => r.testName.toLowerCase().includes(testFilter));
+  if (regFilter)  rows = rows.filter(r => r.regNo.includes(regFilter));
+  const tbody = document.getElementById('tat-tw-tbody');
+  if (tbody) tbody.innerHTML = renderTATTestwiseRows(rows);
+}
+
+// ════════════════════════════════════════════════════════
+//  TAT PATIENT WISE REPORT
+// ════════════════════════════════════════════════════════
+function renderTATPatientwise() {
+  const rows = getTATRows();
+  return `
+${ph('TAT Report Patient Wise', 'Turnaround time analysis per patient registration.')}
+${bc('Home', 'Reporting', 'TAT Patient Wise')}
+<div class="card mb2" style="padding:14px 18px">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:16px">📅</span>
+      <input class="inp" type="date" id="tat-pw-from"
+        value="${new Date(Date.now()-7*864e5).toISOString().slice(0,10)}" style="flex:1"/>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:16px">📅</span>
+      <input class="inp" type="date" id="tat-pw-to"
+        value="${isoToday()}" style="flex:1"/>
+    </div>
+    <input class="inp" id="tat-pw-name" placeholder="Enter Patient Name"/>
+    <input class="inp" id="tat-pw-regno" placeholder="Enter Reg No"/>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:14px">🕐</span>
+      <select class="inp" id="tat-pw-fromtime" style="width:180px">
+        <option value="">Select From Time</option>
+        ${Array.from({length:24},(_,i)=>`<option value="${i}:00">${String(i).padStart(2,'0')}:00</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:14px">🕐</span>
+      <select class="inp" id="tat-pw-totime" style="width:180px">
+        <option value="">Select To Time</option>
+        ${Array.from({length:24},(_,i)=>`<option value="${i}:00">${String(i).padStart(2,'0')}:00</option>`).join('')}
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="filterTATPatientwise()">Click</button>
+    <button class="btn btn-outline-steel" onclick="showToast('Generating report…','info')">Report</button>
+  </div>
+</div>
+<div class="card" style="padding:0;overflow:hidden">
+  <div class="tbl-wrap">
+    <table style="font-size:12.5px">
+      <thead>
+        <tr>
+          <th>PatRegID</th>
+          <th>Patient Name</th>
+          <th>Register Date Time</th>
+          <th>Report Date Time</th>
+          <th>Test Name</th>
+          <th>TAT Duration</th>
+          <th>Duration</th>
+          <th>TAT Status</th>
+        </tr>
+      </thead>
+      <tbody id="tat-pw-tbody">${renderTATPatientwiseRows(rows)}</tbody>
+    </table>
+  </div>
+</div>`;
+}
+
+function renderTATPatientwiseRows(rows) {
+  if (!rows.length) return `<tr><td colspan="8" class="empty-state" style="padding:28px">
+    No data found. Register patients and add tests to see TAT data.
+  </td></tr>`;
+  return rows.map((r, i) => `
+    <tr style="background:${i%2===0?'#f0f7fc':'#fff'}">
+      <td class="col-mono">${r.regNo}</td>
+      <td style="font-weight:600">${r.patientName}</td>
+      <td style="font-size:11.5px">
+        ${r.regDateTime ? new Date(r.regDateTime).toLocaleString('en-GB') : '—'}
+      </td>
+      <td style="font-size:11.5px;color:var(--text-muted)">
+        ${r.reportDateTime ? new Date(r.reportDateTime).toLocaleString('en-GB') : ''}
+      </td>
+      <td style="font-weight:600;color:var(--steel-600)">${r.testName}</td>
+      <td class="col-mono" style="text-align:center">${r.tatDuration}</td>
+      <td style="text-align:center;color:var(--text-muted)">${r.durationUnit}</td>
+      <td>
+        <span style="background:#dcfce7;color:#15803d;border-radius:5px;
+                     padding:2px 10px;font-size:11px;font-weight:700">
+          ${r.tatStatus}
+        </span>
+      </td>
+    </tr>`).join('');
+}
+
+function filterTATPatientwise() {
+  const nameFilter  = document.getElementById('tat-pw-name')?.value.toLowerCase();
+  const regFilter   = document.getElementById('tat-pw-regno')?.value;
+  let rows = getTATRows();
+  if (nameFilter) rows = rows.filter(r => r.patientName.toLowerCase().includes(nameFilter));
+  if (regFilter)  rows = rows.filter(r => r.regNo.includes(regFilter));
+  const tbody = document.getElementById('tat-pw-tbody');
+  if (tbody) tbody.innerHTML = renderTATPatientwiseRows(rows);
+}
+
+// ════════════════════════════════════════════════════════
+//  WORKSHEET
+// ════════════════════════════════════════════════════════
+function renderWorksheet() {
+  return `
+${ph('Worksheet', 'Daily lab worksheet — tests pending processing.')}
+${bc('Home', 'Reporting', 'Worksheet')}
+<div class="card mb2" style="padding:14px 18px">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:12px;align-items:flex-end">
+    <div>
+      <label class="form-label">From Date</label>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:16px">📅</span>
+        <input class="inp" type="date" id="ws-from" value="${isoToday()}" style="flex:1"/>
+      </div>
+    </div>
+    <div>
+      <label class="form-label">To Date</label>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:16px">📅</span>
+        <input class="inp" type="date" id="ws-to" value="${isoToday()}" style="flex:1"/>
+      </div>
+    </div>
+    <div>
+      <label class="form-label">Department</label>
+      <select class="inp" id="ws-dept">
+        <option value="">All Departments</option>
+        ${departments.map(d=>`<option>${d}</option>`).join('')}
+      </select>
+    </div>
+    <div>
+      <label class="form-label">Patient Name</label>
+      <input class="inp" id="ws-name" placeholder="Enter Patient Name"/>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="filterWorksheet()">Click</button>
+      <button class="btn btn-outline-steel" onclick="showToast('Printing worksheet…','info')">🖨 Print</button>
+    </div>
+  </div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
+  ${[
+    {label:'Total Tests',val:patients.reduce((s,p)=>(p.tests||'').split(', ').filter(Boolean).length+s,0),bg:'#dbeafe',color:'#1d4ed8',icon:'🔬'},
+    {label:'Pending',val:patients.filter(p=>p.status==='Reg'||p.status==='SamCollect').length,bg:'#fef3c7',color:'#b45309',icon:'⏳'},
+    {label:'In Progress',val:patients.filter(p=>p.status==='SamAcc'||p.status==='Tested').length,bg:'#ede9fe',color:'#7c3aed',icon:'⚗️'},
+    {label:'Completed',val:patients.filter(p=>p.status==='Printed'||p.status==='Dispatch').length,bg:'#dcfce7',color:'#15803d',icon:'✅'},
+  ].map(s=>`
+    <div style="background:${s.bg};border:1px solid ${s.color}22;border-radius:10px;
+                padding:14px 16px;display:flex;align-items:center;gap:12px">
+      <div style="font-size:24px">${s.icon}</div>
+      <div>
+        <div style="font-size:22px;font-weight:800;color:${s.color}">${s.val}</div>
+        <div style="font-size:11px;font-weight:600;color:${s.color};text-transform:uppercase;
+                    letter-spacing:.4px">${s.label}</div>
+      </div>
+    </div>`).join('')}
+</div>
+<div class="card" style="padding:0;overflow:hidden">
+  <div class="tbl-wrap">
+    <table style="font-size:12.5px">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Reg No</th>
+          <th>Patient Name</th>
+          <th>Gender</th>
+          <th>Age</th>
+          <th>Test Name</th>
+          <th>Department</th>
+          <th>Sample Type</th>
+          <th>Reg Date</th>
+          <th>Status</th>
+          <th>Ref Doctor</th>
+        </tr>
+      </thead>
+      <tbody id="ws-tbody">${renderWorksheetRows()}</tbody>
+    </table>
+  </div>
+</div>`;
+}
+
+function renderWorksheetRows(filter) {
+  const rows = [];
+  let list = filter ? patients.filter(filter) : patients;
+  list.forEach(p => {
+    (p.tests||'').split(', ').filter(Boolean).forEach(testName => {
+      const t = testCatalog.find(x=>x.name===testName);
+      rows.push({ p, testName, dept: t?.dept||'—', sampleType: t?.sampleType||'—' });
+    });
+  });
+  if (!rows.length) return `<tr><td colspan="11" class="empty-state" style="padding:28px">
+    No worksheet data found for selected criteria.
+  </td></tr>`;
+  return rows.map((r,i)=>`
+    <tr style="background:${i%2===0?'#fff':'#fafcfe'}">
+      <td style="color:var(--text-faint)">${i+1}</td>
+      <td class="col-mono">${r.p.regNo}</td>
+      <td style="font-weight:600">${r.p.name}</td>
+      <td>${r.p.gender}</td>
+      <td>${r.p.age} ${r.p.ageUnit||''}</td>
+      <td style="color:var(--steel-600);font-weight:600">${r.testName}</td>
+      <td style="font-size:12px">${r.dept}</td>
+      <td><span class="tag">${r.sampleType}</span></td>
+      <td style="font-size:11.5px">
+        ${r.p.createdAt ? new Date(r.p.createdAt).toLocaleString('en-GB') : '—'}
+      </td>
+      <td>${badge(r.p.status||'Reg')}</td>
+      <td style="font-size:11.5px">${r.p.refDoc||'Self'}</td>
+    </tr>`).join('');
+}
+
+function filterWorksheet() {
+  const name = document.getElementById('ws-name')?.value.toLowerCase();
+  const dept = document.getElementById('ws-dept')?.value;
+  const tbody = document.getElementById('ws-tbody');
+  if (tbody) tbody.innerHTML = renderWorksheetRows(p => {
+    const matchName = !name || p.name.toLowerCase().includes(name);
+    const matchDept = !dept || (p.tests||'').split(', ').some(tn => {
+      const t = testCatalog.find(x=>x.name===tn);
+      return t?.dept === dept;
+    });
+    return matchName && matchDept;
+  });
+}
+
+// ════════════════════════════════════════════════════════
+//  PENDING REPORT
+// ════════════════════════════════════════════════════════
+function renderPendingReport() {
+  const pending = patients.filter(p =>
+    p.status === 'Reg' || p.status === 'SamCollect' ||
+    p.status === 'SamAcc' || p.status === 'Tested');
+
+  return `
+${ph('Pending Report', 'View all pending test reports by date and department type.')}
+${bc('Home', 'Reporting', 'Pending Report')}
+<div class="card mb2" style="padding:14px 18px">
+  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:16px">📅</span>
+      <input class="inp" type="date" id="pr-from" value="${isoToday()}" style="width:180px"/>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:16px">📅</span>
+      <input class="inp" type="date" id="pr-to" value="${isoToday()}" style="width:180px"/>
+    </div>
+    <div class="radio-group">
+      <label class="radio-opt">
+        <input type="radio" name="pr-type" value="Pathology" checked
+          onchange="filterPendingReport()"> Pathology
+      </label>
+      <label class="radio-opt">
+        <input type="radio" name="pr-type" value="Radiology"
+          onchange="filterPendingReport()"> Radiology
+      </label>
+    </div>
+    <button class="btn btn-primary" onclick="filterPendingReport()">Click</button>
+    <button class="btn btn-outline-steel" onclick="showToast('Generating report…','info')">Report</button>
+  </div>
+</div>
+
+<!-- Summary tiles -->
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+  ${[
+    {label:'Total Pending',val:pending.length,bg:'#fee2e2',color:'#dc2626',icon:'⏳'},
+    {label:'Sample Collected',val:patients.filter(p=>p.status==='SamCollect'||p.status==='SamAcc').length,bg:'#fef3c7',color:'#b45309',icon:'🧪'},
+    {label:'Result Pending',val:patients.filter(p=>p.status==='Tested').length,bg:'#ede9fe',color:'#7c3aed',icon:'🔬'},
+  ].map(s=>`
+    <div style="background:${s.bg};border:1px solid ${s.color}22;border-radius:10px;
+                padding:14px 18px;display:flex;align-items:center;gap:12px">
+      <div style="font-size:28px">${s.icon}</div>
+      <div>
+        <div style="font-size:26px;font-weight:800;color:${s.color}">${s.val}</div>
+        <div style="font-size:11px;font-weight:600;color:${s.color};
+                    text-transform:uppercase;letter-spacing:.4px">${s.label}</div>
+      </div>
+    </div>`).join('')}
+</div>
+
+<div class="card" style="padding:0;overflow:hidden">
+  <div class="tbl-wrap">
+    <table style="font-size:12.5px">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Reg No</th>
+          <th>Patient Name</th>
+          <th>Gender</th>
+          <th>Age</th>
+          <th>Ref Doctor</th>
+          <th>Center</th>
+          <th>Tests</th>
+          <th>Reg Date</th>
+          <th>Status</th>
+          <th>Mobile</th>
+        </tr>
+      </thead>
+      <tbody id="pr-tbody">${renderPendingRows(pending)}</tbody>
+    </table>
+  </div>
+</div>`;
+}
+
+function renderPendingRows(list) {
+  if (!list.length) return `<tr><td colspan="11" class="empty-state" style="padding:28px">
+    <div style="font-size:36px;margin-bottom:10px">✅</div>
+    No pending reports — all tests are completed!
+  </td></tr>`;
+  return list.map((p,i)=>`
+    <tr style="background:${i%2===0?'#fff7ed':'#fff'}">
+      <td style="color:var(--text-faint)">${i+1}</td>
+      <td class="col-mono" style="font-weight:700;color:var(--steel-600)">${p.regNo}</td>
+      <td>
+        <span class="text-link" onclick="navigate('patient-clinical-history',{id:${p.id}})">
+          ${p.name}
+        </span>
+      </td>
+      <td>${p.gender}</td>
+      <td>${p.age} ${p.ageUnit||''}</td>
+      <td style="font-size:11.5px">${p.refDoc||'Self'}</td>
+      <td>
+        <span style="background:var(--steel-100);color:var(--steel-700);
+                     border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600">
+          ${p.center}
+        </span>
+      </td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;
+                 white-space:nowrap;font-size:11.5px" title="${p.tests}">
+        ${p.tests}
+      </td>
+      <td style="font-size:11.5px">
+        ${p.createdAt ? new Date(p.createdAt).toLocaleString('en-GB') : '—'}
+      </td>
+      <td>${badge(p.status||'Reg')}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${p.mobile||'—'}</td>
+    </tr>`).join('');
+}
+
+function filterPendingReport() {
+  const pending = patients.filter(p =>
+    p.status === 'Reg' || p.status === 'SamCollect' ||
+    p.status === 'SamAcc' || p.status === 'Tested');
+  const tbody = document.getElementById('pr-tbody');
+  if (tbody) tbody.innerHTML = renderPendingRows(pending);
+}
+
+// ════════════════════════════════════════════════════════
+//  PANIC REGISTER
+// ════════════════════════════════════════════════════════
+function renderPanicRegister() {
+  const panicTests = [];
+  patients.forEach(p => {
+    (p.testResults || []).forEach(tr => {
+      if (tr.authStatus === 'Approved' && tr.result) {
+        const test = testCatalog.find(t => t.name === tr.testName);
+        const ranges = test?.ranges || [];
+        ranges.forEach(r => {
+          const val = parseFloat(tr.result);
+          const pL  = parseFloat(r.panicLow);
+          const pH  = parseFloat(r.panicHigh);
+          if (!isNaN(val) && ((!isNaN(pL) && val < pL) || (!isNaN(pH) && val > pH))) {
+            panicTests.push({
+              regNo: p.regNo,
+              patientName: p.name,
+              gender: p.gender,
+              age: p.age,
+              mobile: p.mobile,
+              testName: tr.testName,
+              result: tr.result,
+              panicLow: r.panicLow,
+              panicHigh: r.panicHigh,
+              unit: r.uom || '',
+              approvedBy: tr.approvedBy,
+              createdAt: p.createdAt
+            });
+          }
+        });
+      }
+    });
+  });
+
+  return `
+${ph('Panic Register', 'Critical / panic value test results requiring immediate attention.')}
+${bc('Home', 'Reporting', 'Panic Register')}
+<div class="card mb2" style="padding:14px 18px">
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:16px">📅</span>
+      <input class="inp" type="date" id="panic-from"
+        value="${new Date(Date.now()-7*864e5).toISOString().slice(0,10)}"
+        style="width:180px"/>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:16px">📅</span>
+      <input class="inp" type="date" id="panic-to"
+        value="${isoToday()}" style="width:180px"/>
+    </div>
+    <input class="inp" id="panic-name" placeholder="Enter Patient Name" style="width:200px"/>
+    <input class="inp" id="panic-test" placeholder="Enter Test Name" style="width:200px"/>
+    <button class="btn btn-primary" onclick="filterPanicRegister()">Click</button>
+    <button class="btn btn-outline-steel" onclick="showToast('Generating report…','info')">Report</button>
+  </div>
+</div>
+
+<!-- Alert banner -->
+<div style="background:#fee2e2;border:1px solid #fecaca;border-radius:10px;
+            padding:14px 18px;margin-bottom:16px;
+            display:flex;align-items:center;gap:12px">
+  <span style="font-size:28px">🚨</span>
+  <div>
+    <div style="font-weight:700;font-size:13.5px;color:#dc2626">
+      Panic Values Alert
+    </div>
+    <div style="font-size:12px;color:#991b1b;margin-top:2px">
+      The following patients have critical test values outside panic ranges.
+      Immediate clinical attention required.
+    </div>
+  </div>
+  <div style="margin-left:auto;text-align:center">
+    <div style="font-size:28px;font-weight:800;color:#dc2626">${panicTests.length}</div>
+    <div style="font-size:11px;color:#991b1b;font-weight:600">PANIC RESULTS</div>
+  </div>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden">
+  <div class="tbl-wrap">
+    <table style="font-size:12.5px">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Reg No</th>
+          <th>Patient Name</th>
+          <th>Gender</th>
+          <th>Age</th>
+          <th>Mobile</th>
+          <th>Test Name</th>
+          <th>Result</th>
+          <th>Panic Low</th>
+          <th>Panic High</th>
+          <th>Unit</th>
+          <th>Authorized By</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody id="panic-tbody">${renderPanicRows(panicTests)}</tbody>
+    </table>
+  </div>
+</div>`;
+}
+
+function renderPanicRows(list) {
+  if (!list.length) return `<tr><td colspan="13" class="empty-state" style="padding:40px">
+    <div style="font-size:40px;margin-bottom:10px">✅</div>
+    <div style="font-weight:600;color:var(--text-secondary)">No panic values found</div>
+    <div style="font-size:12px;margin-top:4px">
+      All test results are within safe ranges.
+    </div>
+  </td></tr>`;
+  return list.map((r,i)=>`
+    <tr style="background:${i%2===0?'#fff5f5':'#fff'};border-left:3px solid #dc2626">
+      <td style="color:var(--text-faint)">${i+1}</td>
+      <td class="col-mono" style="font-weight:700;color:var(--steel-600)">${r.regNo}</td>
+      <td style="font-weight:700;color:#dc2626">${r.patientName}</td>
+      <td>${r.gender}</td>
+      <td>${r.age}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${r.mobile||'—'}</td>
+      <td style="font-weight:600">${r.testName}</td>
+      <td>
+        <span style="background:#dc2626;color:#fff;border-radius:5px;
+                     padding:3px 10px;font-size:12px;font-weight:800;
+                     font-family:'DM Mono',monospace">
+          ${r.result}
+        </span>
+      </td>
+      <td class="col-mono" style="color:#dc2626">${r.panicLow||'—'}</td>
+      <td class="col-mono" style="color:#dc2626">${r.panicHigh||'—'}</td>
+      <td style="color:var(--text-muted)">${r.unit}</td>
+      <td style="font-size:11.5px">${r.approvedBy||'—'}</td>
+      <td style="font-size:11.5px">
+        ${r.createdAt ? new Date(r.createdAt).toLocaleString('en-GB') : '—'}
+      </td>
+    </tr>`).join('');
+}
+
+function filterPanicRegister() {
+  showToast('Filter applied', 'info');
+  navigate('panic-register');
+}
     function renderSQLBackup() { return `${ph('Database Backup', 'Create and manage system database backups.')}${bc('Home', 'Master Configuration', 'SQL Backup')}<div class="card" style="max-width:700px"><div style="background:var(--steel-25);border:1px solid var(--steel-150);border-left:3px solid var(--steel-400);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:12.5px;color:var(--text-secondary)">Create daily backups to prevent data loss. Scheduled backups run automatically at midnight.</div><div class="g2 mb3"><div class="card" style="text-align:center;border:1.5px solid var(--border-subtle)"><div style="font-size:36px;margin-bottom:10px">🗄️</div><div style="font-weight:700;margin-bottom:4px">Manual Backup</div><div style="color:var(--text-muted);font-size:12px;margin-bottom:14px">Create a backup now</div><button class="btn btn-primary fw" onclick="doBackup()">Create Backup Now</button></div><div class="card" style="text-align:center;border:1.5px solid var(--border-subtle)"><div style="font-size:36px;margin-bottom:10px">⏰</div><div style="font-weight:700;margin-bottom:4px">Scheduled Backup</div><div style="color:var(--text-muted);font-size:12px;margin-bottom:14px">Auto nightly backup</div><label class="tog-wrap" style="justify-content:center"><label class="tog"><input type="checkbox" checked><span class="tog-sl"></span></label>Daily at 11:59 PM</label></div></div><div class="tbl-wrap"><table><thead><tr><th>Date &amp; Time</th><th>File Size</th><th>Type</th><th>Status</th><th>Action</th></tr></thead><tbody><tr><td class="col-mono">10-03-2026 23:59</td><td class="mono">2.4 MB</td><td>Scheduled</td><td><span class="badge b-printed">Success</span></td><td><button class="btn btn-outline-steel btn-xs">Download</button></td></tr><tr><td class="col-mono">09-03-2026 23:59</td><td class="mono">2.3 MB</td><td>Scheduled</td><td><span class="badge b-printed">Success</span></td><td><button class="btn btn-outline-steel btn-xs">Download</button></td></tr></tbody></table></div></div>`; }
     function doBackup() { showToast('Backup initiated…', 'info'); setTimeout(() => showToast('Backup completed successfully', 'success'), 1800); }
     function renderDepartmentMaster() { return `${ph('Departments', 'Manage laboratory departments.')}${bc('Home', 'Master Configuration', 'Departments')}<div class="card"><div class="flex mb3" style="gap:10px"><input class="inp" id="dept-name" placeholder="New department name…" style="width:280px"/><button class="btn btn-success" onclick="addDept()">+ Add Department</button></div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>Department Name</th><th>Tests Assigned</th><th>Actions</th></tr></thead><tbody>${departments.map((d, i) => `<tr><td style="color:var(--text-faint)">${i + 1}</td><td style="font-weight:700">${d}</td><td>${testCatalog.filter(t => t.dept === d).length} test(s)</td><td><button class="btn btn-danger btn-xs" onclick="removeDept(${i})">Remove</button></td></tr>`).join('')}</tbody></table></div></div>`; }

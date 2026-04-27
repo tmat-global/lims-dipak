@@ -1920,6 +1920,7 @@
         const d = data.data || {};
         authToken = d.token || '';
         if (authToken) localStorage.setItem('lis_token', authToken);
+        localStorage.setItem('lis_user', JSON.stringify({ username: document.getElementById('un')?.value||'admin', password: document.getElementById('pw')?.value||'' }));
         currentUser = { username: d.username || u, fullName: d.fullName || u, roles: d.roles || ['ADMIN'] };
         showToast('Welcome back, ' + currentUser.fullName + '!', 'success');
         launchApp();
@@ -1936,6 +1937,34 @@
     function doLogout() { clearAuth(); document.getElementById('app').style.display = 'none'; document.getElementById('login-page').style.display = 'flex'; }
     function togglePassVis() { const i = document.getElementById('login-pass'); i.type = i.type === 'password' ? 'text' : 'password'; }
     function setToken(t) { authToken = t; if (t) localStorage.setItem('lis_token', t); else localStorage.removeItem('lis_token'); }
+
+    async function apiFetch(url, opts={}) {
+      try {
+        let token = authToken || localStorage.getItem('lis_token') || '';
+        const headers = { 'Authorization': 'Bearer '+token, ...(opts.headers||{}) };
+        let res = await fetch(url, { ...opts, headers });
+        if (res && (res.status === 401 || res.status === 403)) {
+          try {
+            const savedUser = JSON.parse(localStorage.getItem('lis_user')||'{}');
+            const lr = await fetch('http://localhost:8081/api/auth/login', {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ username: savedUser.username||'admin', password: savedUser.password||'admin123' })
+            });
+            const ld = await lr.json();
+            if (ld.token) {
+              setToken(ld.token);
+              token = ld.token;
+              const headers2 = { 'Authorization': 'Bearer '+token };
+              res = await fetch(url, { ...opts, headers: headers2 });
+            }
+          } catch(e) { console.error('Re-auth failed:', e); }
+        }
+        return res;
+      } catch(e) {
+        console.error('apiFetch error:', e);
+        return { ok: false, status: 0, json: async () => ({ success: false, data: null }) };
+      }
+    }
     function clearAuth() { setToken(''); currentUser = { username: '', fullName: '', roles: [] }; }
     function apiBase() { return 'http://localhost:8081/api'; }
 
@@ -2065,7 +2094,7 @@
       'dashboard': renderDashboard, 'new-registration': renderNewRegistration,
       'patient-status': renderPatientStatus, 'clinical-history-edit': renderClinicalHistoryEdit,
       'patient-clinical-history': renderPatientClinicalHistory, 'ref-doctor': renderRefDoctor,
-      'graphical-display': () => '<div class="empty-state" style="padding:40px;font-size:18px;">Graphical Display under construction</div>', 'print-report': renderPrintReport,
+      'graphical-display': renderGraphicalDisplay, 'print-report': renderPrintReport,
       'patient-call': renderPatientCall, 'sample-collection': renderSamplePage,
       'sample-accept': renderSamplePage, 'user-management': renderUserManagement,
       'authorize-report': renderAuthorizeReport,
@@ -2086,10 +2115,9 @@
       'sql-backup': renderSQLBackup,
       'tat-testwise': renderTATTestwise,
       'tat-patientwise': renderTATPatientwise,
-      'worksheet': () => '<div class="empty-state" style="padding:40px;font-size:18px;">Worksheet under construction</div>',
+      'worksheet': renderWorksheet,
       'pending-report': renderPendingReport,
       'panic-register': renderPanicRegister,
-      'worksheet': renderWorksheet,
     };
     let pageData = null;
 
@@ -2276,11 +2304,11 @@
     <div style="display:grid;grid-template-columns:90px 1fr 120px 160px 150px;gap:12px" class="mb2">
       <div><label class="form-label">Title</label><select class="inp" id="reg-init"><option></option><option>Mr.</option><option>Mrs.</option><option>Ms.</option><option>Dr.</option><option>Baby</option><option>Master</option></select></div>
       <div><label class="form-label">Patient Name <span style="color:#dc2626">*</span></label><input class="inp" id="reg-name" placeholder="Full name"/></div>
-      <div><label class="form-label">Gender</label><select class="inp" id="reg-gender"><option>Male</option><option>Female</option><option>Other</option></select></div>
+      <div><label class="form-label">Gender</label><select class="inp" id="reg-gender" onchange="autoSetTitle()"><option>Male</option><option>Female</option><option>Other</option></select></div>
       <div><label class="form-label">Age</label>
         <div class="flex"><input class="inp" id="reg-age" type="number" placeholder="Age" style="width:75px"/><select class="inp" id="reg-ageunit"><option>Years</option><option>Months</option><option>Days</option></select></div>
       </div>
-      <div><label class="form-label">Date of Birth</label><input class="inp" id="reg-dob" type="date"/></div>
+      <div><label class="form-label">Date of Birth</label><input class="inp" id="reg-dob" type="date" onchange="calcAgeFromDOB()"/></div>
     </div>
     <div class="g4 mb2">
       <div><label class="form-label">Mobile <span style="color:#dc2626">*</span></label><input class="inp" id="reg-mob" placeholder="Mobile"/></div>
@@ -2636,45 +2664,130 @@ function applyRoutine(routineId) {
     // ════════════════════════════════════════════════════════
     //  CLINICAL HISTORY EDIT
     // ════════════════════════════════════════════════════════
+    let cheData = [];
+
     function renderClinicalHistoryEdit() {
+      setTimeout(() => loadCHEData(), 100);
       return `
   ${ph('Edit Patient Records', 'Search and modify existing patient records.')}
   ${bc('Home', 'Front Desk', 'Edit Patient')}
-  <div class="card">
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;margin-bottom:16px;align-items:flex-end">
-      <div><label class="form-label">Patient Name</label><input class="inp" id="che-name" placeholder="Name" oninput="filterCHE()"/></div>
-      <div><label class="form-label">Mobile</label><input class="inp" id="che-mob" placeholder="Mobile" oninput="filterCHE()"/></div>
-      <div><label class="form-label">Reg. No.</label><input class="inp" id="che-reg" placeholder="Registration No." oninput="filterCHE()"/></div>
-      <button class="btn btn-primary" onclick="filterCHE()">Search</button>
+  <div class="card" style="padding:14px 18px;margin-bottom:14px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:flex-end">
+      <div>
+        <label class="form-label">PPID / Patient ID</label>
+        <input class="inp" id="che-ppid" placeholder="Enter PPID" oninput="filterCHELocal()"/>
+      </div>
+      <div>
+        <label class="form-label">Patient Name</label>
+        <input class="inp" id="che-name" placeholder="Enter Name" oninput="filterCHELocal()"/>
+      </div>
+      <div>
+        <label class="form-label">Mobile / Reg No.</label>
+        <input class="inp" id="che-mob" placeholder="Mobile or Reg No." oninput="filterCHELocal()"/>
+      </div>
+      <button class="btn btn-primary" onclick="loadCHEData()" style="background:#15803d">Search</button>
     </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
     <div class="tbl-wrap">
-      <table><thead><tr><th>Action</th><th>Reg. No.</th><th>Patient Name</th><th>Center</th><th>Tests</th><th class="text-right">Charges</th></tr></thead>
-        <tbody id="che-tbody">${renderCHERows(patients)}</tbody>
+      <table style="font-size:12.5px">
+        <thead>
+          <tr style="background:#1a3a5c;color:#fff">
+            <th>Action</th><th>PPID</th><th>Reg. No.</th>
+            <th>Patient Name</th><th>Gender</th><th>Age</th>
+            <th>Center</th><th>Tests</th>
+            <th class="text-right">Charges</th>
+          </tr>
+        </thead>
+        <tbody id="che-tbody">
+          <tr><td colspan="9" class="empty-state" style="padding:28px">Click Search to load patients...</td></tr>
+        </tbody>
       </table>
     </div>
   </div>`;
     }
-    function renderCHERows(list) {
-      if (!list.length) return '<tr><td colspan="6" class="empty-state" style="padding:28px">No patients found</td></tr>';
-      return list.map(p => `<tr>
-    <td><button class="btn btn-primary btn-xs" onclick="navigate('patient-clinical-history',{id:${p.id}})">Edit Record</button></td>
-    <td class="col-mono">${p.regNo}</td><td style="font-weight:600">${p.name}</td>
-    <td>${p.center}</td><td class="trunc">${p.tests}</td>
-    <td class="text-right mono">₹${fmt(p.charges)}</td>
-  </tr>`).join('');
-    }
-    function filterCHE() {
-      const name = document.getElementById('che-name')?.value.toLowerCase().trim();
-      const mob = document.getElementById('che-mob')?.value.trim();
-      const reg = document.getElementById('che-reg')?.value.trim();
-      let list = [...patients];
-      if (name) list = list.filter(p => p.name.toLowerCase().includes(name));
-      if (mob) list = list.filter(p => p.mobile && p.mobile.includes(mob));
-      if (reg) list = list.filter(p => p.regNo.includes(reg));
-      const tbody = document.getElementById('che-tbody'); if (tbody) tbody.innerHTML = renderCHERows(list);
+
+    async function loadCHEData() {
+      const tbody = document.getElementById('che-tbody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="empty-state">Loading...</td></tr>';
+      const name  = document.getElementById('che-name')?.value || '';
+      const mob   = document.getElementById('che-mob')?.value  || '';
+      const ppid  = document.getElementById('che-ppid')?.value || '';
+      try {
+        const token = authToken || localStorage.getItem('lis_token') || '';
+        const monthAgo = new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
+        const today = isoToday();
+        const params = new URLSearchParams({ from: monthAgo+'T00:00:00', to: today+'T23:59:59', page:0, size:200 });
+        if (name) params.append('patientName', name);
+        if (mob && !isNaN(mob) && mob.length > 5) params.append('mobile', mob);
+        else if (mob) params.append('regNo', mob);
+        const res  = await apiFetch('http://localhost:8081/api/v1/registrations?'+params,
+          { headers: { 'Authorization': 'Bearer '+token } });
+        const data = await res.json();
+        cheData = (data.success && data.data) ? (data.data.content||[]) : [];
+        // Filter by PPID if provided
+        if (ppid) cheData = cheData.filter(r => String(r.patient?.id||'').includes(ppid));
+      } catch(e) {
+        console.error('CHE load error:', e);
+        cheData = patients.map(p => ({
+          id:p.id, regNo:p.regNo,
+          patient:{id:p.id, name:p.name, gender:p.gender, age:p.age, ageUnit:p.ageUnit, mobile:p.mobile},
+          center:p.center, totalAmount:p.charges,
+          tests:(p.tests||'').split(',').filter(Boolean).map(t=>({name:t.trim()}))
+        }));
+      }
+      renderCHETable();
     }
 
-    // ════════════════════════════════════════════════════════
+    function filterCHELocal() {
+      const name = (document.getElementById('che-name')?.value||'').toLowerCase();
+      const mob  = document.getElementById('che-mob')?.value||'';
+      const ppid = document.getElementById('che-ppid')?.value||'';
+      let filtered = [...cheData];
+      if (name)  filtered = filtered.filter(r => (r.patient?.name||'').toLowerCase().includes(name));
+      if (mob)   filtered = filtered.filter(r => (r.patient?.mobile||'').includes(mob) || (r.regNo||'').includes(mob));
+      if (ppid)  filtered = filtered.filter(r => String(r.patient?.id||'').includes(ppid));
+      renderCHETable(filtered);
+    }
+
+    function renderCHETable(list) {
+      const tbody = document.getElementById('che-tbody');
+      if (!tbody) return;
+      const data = list || cheData;
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="9" class="empty-state" style="padding:28px">No patients found.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map((reg, idx) => {
+        const rowBg = idx%2===0?'#dbeafe':'#ffffff';
+        const tests = (reg.tests||[]).map(t=>t.name||t.testName||'').filter(Boolean).join(', ');
+        return '<tr style="background:'+rowBg+'">' +
+          '<td><button class="btn btn-primary btn-xs" onclick="openCHEPatient('+reg.id+')" ' +
+          'style="background:#0369a1;font-size:11px;padding:3px 12px">Edit Record</button></td>' +
+          '<td class="col-mono" style="font-weight:700;color:#cc0000">'+(reg.patient?.id||reg.id)+'</td>' +
+          '<td class="col-mono">'+reg.regNo+'</td>' +
+          '<td style="font-weight:600">'+(reg.patient?.name||'')+'</td>' +
+          '<td>'+(reg.patient?.gender||'')+'</td>' +
+          '<td>'+(reg.patient?.age||'')+' '+(reg.patient?.ageUnit||'')+'</td>' +
+          '<td>'+(reg.center||'OPD')+'</td>' +
+          '<td style="font-size:11px;max-width:200px">'+tests+'</td>' +
+          '<td class="text-right mono">'+fmt(reg.totalAmount||0)+'</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    function openCHEPatient(regId) {
+      const reg = cheData.find(r => r.id === regId);
+      if (reg) navigate('patient-clinical-history', { id: reg.patient?.id||reg.id, regId: regId });
+    }
+
+    function renderCHERows(list) {
+      return renderCHETable(list) || '';
+    }
+
+    function filterCHE() { loadCHEData(); }
+
+        // ════════════════════════════════════════════════════════
 //  PATIENT CLINICAL HISTORY  (Enhanced Edit Page)
 // ════════════════════════════════════════════════════════
 let pchSelectedTests = [];   // { id, code, name, type, rate, modifyRate }
@@ -3064,35 +3177,134 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
       `, d ? 'Edit Doctor' : 'Add Referring Doctor', 'modal-md');
     }
 
+    let prData = [];
+
     function renderPrintReport() {
+      const monthAgo = new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
+      setTimeout(() => loadPRData(), 100);
       return `
   ${ph('Print Reports', 'Search, preview, and download patient test reports.')}
   ${bc('Home', 'Front Desk', 'Print Report')}
-  <div class="card">
-    <div class="g4 mb2">
-      <div><label class="form-label">From Date</label><input class="inp" type="date" value="${isoToday()}"/></div>
-      <div><label class="form-label">To Date</label><input class="inp" type="date" value="${isoToday()}"/></div>
-      <div><label class="form-label">Patient Name</label><input class="inp" placeholder="Name"/></div>
-      <div><label class="form-label">Registration No.</label><input class="inp" placeholder="Reg. No."/></div>
+  <div class="card mb2" style="padding:14px 18px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:12px;align-items:flex-end">
+      <div>
+        <label class="form-label">From Date</label>
+        <input class="inp" type="date" id="pr-from" value="${monthAgo}"/>
+      </div>
+      <div>
+        <label class="form-label">To Date</label>
+        <input class="inp" type="date" id="pr-to" value="${isoToday()}"/>
+      </div>
+      <div>
+        <label class="form-label">Patient Name</label>
+        <input class="inp" id="pr-name" placeholder="Name"/>
+      </div>
+      <div>
+        <label class="form-label">Registration No.</label>
+        <input class="inp" id="pr-regno" placeholder="Reg. No."/>
+      </div>
+      <button class="btn btn-primary" onclick="loadPRData()">Search</button>
     </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
     <div class="tbl-wrap">
-      <table><thead><tr><th>Reg. No.</th><th>Name</th><th>Mobile</th><th>Gender</th><th>Ref. Doctor</th><th>Center</th><th>Tests</th><th>Status</th><th class="text-right">Charges</th><th class="text-right">Paid</th><th class="text-right">Balance</th><th>Actions</th></tr></thead>
-        <tbody>${!patients.length ? '<tr><td colspan="12" class="empty-state" style="padding:28px">No patients found</td></tr>' : patients.slice(0, 20).map(p => `<tr>
-          <td class="col-mono">${p.regNo}</td><td style="font-weight:600">${p.name}</td>
-          <td style="font-family:'DM Mono',monospace;font-size:12px">${p.mobile}</td><td>${p.gender}</td>
-          <td style="font-size:11.5px">${p.refDoc || '—'}</td><td>${p.center}</td>
-          <td class="trunc">${p.tests}</td><td>${badge(p.status || 'Reg')}</td>
-          <td class="text-right mono">₹${fmt(p.charges)}</td>
-          <td class="text-right mono">₹${fmt(p.paid || 0)}</td>
-          <td class="text-right mono">₹${fmt(p.balance || 0)}</td>
-          <td><div class="flex" style="gap:4px">
-            <button class="btn btn-outline-steel btn-xs" onclick="showToast('Downloading…','info')">Download</button>
-            <button class="btn btn-primary btn-xs" onclick="showToast('Printing…','info')">Print</button>
-          </div></td>
-        </tr>`).join('')}</tbody>
+      <table style="font-size:12.5px">
+        <thead>
+          <tr style="background:#1a3a5c;color:#fff">
+            <th>Reg. No.</th><th>Name</th><th>Mobile</th><th>Gender</th>
+            <th>Ref. Doctor</th><th>Center</th><th>Tests</th><th>Status</th>
+            <th class="text-right">Charges</th><th class="text-right">Paid</th>
+            <th class="text-right">Balance</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="pr-tbody">
+          <tr><td colspan="12" class="empty-state" style="padding:28px">Loading...</td></tr>
+        </tbody>
       </table>
     </div>
   </div>`;
+    }
+
+    async function loadPRData() {
+      const tbody = document.getElementById('pr-tbody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="12" class="empty-state">Loading...</td></tr>';
+      const from  = document.getElementById('pr-from')?.value || new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
+      const to    = document.getElementById('pr-to')?.value   || new Date().toISOString().slice(0,10);
+      const name  = document.getElementById('pr-name')?.value || '';
+      const regno = document.getElementById('pr-regno')?.value|| '';
+      try {
+        const params = new URLSearchParams({ from: from+'T00:00:00', to: to+'T23:59:59', page:0, size:200 });
+        if (name)  params.append('patientName', name);
+        if (regno) params.append('regNo', regno);
+        const res  = await apiFetch('http://localhost:8081/api/v1/registrations?'+params);
+        if (!res || !res.ok) throw new Error('Server error');
+        const data = await res.json();
+        prData = (data.success && data.data) ? (data.data.content||[]) : [];
+        renderPRTable();
+      } catch(e) {
+        console.error('PR load error:', e);
+        if (tbody) tbody.innerHTML = '<tr><td colspan="12" class="empty-state">Error: '+e.message+'</td></tr>';
+      }
+    }
+
+    function renderPRTable() {
+      const tbody = document.getElementById('pr-tbody');
+      if (!tbody) return;
+      if (!prData.length) {
+        tbody.innerHTML = '<tr><td colspan="12" class="empty-state" style="padding:28px">No patients found.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = prData.map((reg, i) => {
+        const tests = (reg.tests||[]).map(t=>t.name||'').filter(Boolean).join(', ');
+        const rowBg = i%2===0?'#fff':'#f8fafc';
+        return '<tr style="background:'+rowBg+'">' +
+          '<td class="col-mono" style="font-weight:700">'+reg.regNo+'</td>' +
+          '<td style="font-weight:600">'+(reg.patient?.name||'')+'</td>' +
+          '<td style="font-family:monospace;font-size:12px">'+(reg.patient?.mobile||'')+'</td>' +
+          '<td>'+(reg.patient?.gender||'')+'</td>' +
+          '<td style="font-size:11.5px">'+(reg.refDoctor?.name||'—')+'</td>' +
+          '<td>'+(reg.center||'')+'</td>' +
+          '<td style="font-size:11px;max-width:150px">'+tests+'</td>' +
+          '<td>'+badge(reg.status||'REGISTERED')+'</td>' +
+          '<td class="text-right mono">₹'+fmt(reg.totalAmount||0)+'</td>' +
+          '<td class="text-right mono">₹'+fmt(reg.paidAmount||0)+'</td>' +
+          '<td class="text-right mono">₹'+fmt(reg.balanceAmount||0)+'</td>' +
+          '<td><div style="display:flex;gap:4px">' +
+          '<button class="btn btn-primary btn-xs" onclick="downloadPatientReport('+reg.id+')">📥 Download</button>' +
+            '<button class="btn btn-outline-steel btn-xs" onclick="printPatientReport('+reg.id+')">🖨 Print</button>' +
+          '</div></td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    async function downloadPatientReport(regId) {
+      const regNo = prData.find(r => r.id === regId)?.regNo || regId;
+      showToast('Generating PDF report...', 'info');
+      try {
+        const token = authToken || localStorage.getItem('lis_token') || '';
+        const res = await fetch('http://localhost:8081/api/v1/reports/patient/'+regId, {
+          headers: { 'Authorization': 'Bearer '+token }
+        });
+        if (!res.ok) throw new Error('Report generation failed');
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = 'Report_'+regNo+'.pdf';
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Report downloaded!', 'success');
+      } catch(e) {
+        showToast('Error: '+e.message, 'error');
+      }
+    }
+
+    function printPatientReport(regId) {
+      const token = authToken || localStorage.getItem('lis_token') || '';
+      const url = 'http://localhost:8081/api/v1/reports/patient/'+regId;
+      const win = window.open('', '_blank');
+      win.document.write('<html><body style="margin:0"><iframe src="'+url+'" style="width:100%;height:100vh;border:none"></iframe></body></html>');
+      win.document.close();
     }
 
     // ════════════════════════════════════════════════════════
@@ -3232,6 +3444,7 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
     // ════════════════════════════════════════════════════════
     function renderTATTestwise() {
       setTimeout(() => loadTATData('testwise'), 100);
+      const monthAgo = new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
       return `
   ${ph('TAT Testwise Report', 'Turnaround time analysis grouped by test.')}
   ${bc('Home', 'Reporting', 'TAT Testwise')}
@@ -3239,7 +3452,7 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px">
       <div style="display:flex;align-items:center;gap:6px">
         <span>📅</span>
-        <input class="inp" type="date" id="tat-tw-from" value="${isoToday()}" style="flex:1"/>
+        <input class="inp" type="date" id="tat-tw-from" value="${monthAgo}" style="flex:1"/>
       </div>
       <div style="display:flex;align-items:center;gap:6px">
         <span>📅</span>
@@ -3276,6 +3489,7 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
     // ════════════════════════════════════════════════════════
     function renderTATPatientwise() {
       setTimeout(() => loadTATData('patientwise'), 100);
+      const monthAgo = new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
       return `
   ${ph('TAT Report Patient Wise', 'Turnaround time analysis per patient registration.')}
   ${bc('Home', 'Reporting', 'TAT Patient Wise')}
@@ -3283,7 +3497,7 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px">
       <div style="display:flex;align-items:center;gap:6px">
         <span>📅</span>
-        <input class="inp" type="date" id="tat-pw-from" value="${isoToday()}" style="flex:1"/>
+        <input class="inp" type="date" id="tat-pw-from" value="${monthAgo}" style="flex:1"/>
       </div>
       <div style="display:flex;align-items:center;gap:6px">
         <span>📅</span>
@@ -3330,67 +3544,153 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
       const prefix = mode === 'testwise' ? 'tat-tw' : 'tat-pw';
       const tbody = document.getElementById(prefix+'-tbody');
       if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Loading...</td></tr>';
-
-      const from  = document.getElementById(prefix+'-from')?.value || isoToday();
-      const to    = document.getElementById(prefix+'-to')?.value   || isoToday();
+      const from  = document.getElementById(prefix+'-from')?.value || new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
+      const to    = document.getElementById(prefix+'-to')?.value   || new Date().toISOString().slice(0,10);
       const name  = document.getElementById(prefix+'-name')?.value || '';
       const test  = document.getElementById(prefix+'-test')?.value || '';
       const regno = document.getElementById(prefix+'-regno')?.value|| '';
-
       try {
-        const token = authToken || localStorage.getItem('lis_token') || '';
-        const params = new URLSearchParams({ from: toISODate(from), to: toISODate(to).replace('T00:00:00','T23:59:59'), page:0, size:200 });
+        const params = new URLSearchParams({
+          from: from+'T00:00:00',
+          to:   to+'T23:59:59',
+          page: 0, size: 500
+        });
         if (name)  params.append('patientName', name);
         if (regno) params.append('regNo', regno);
-
-        const res  = await fetch('http://localhost:8081/api/v1/registrations?'+params,
-          { headers: { 'Authorization': 'Bearer '+token } });
+        const res  = await apiFetch('http://localhost:8081/api/v1/registrations?'+params);
+        if (!res || !res.ok) throw new Error('Server returned ' + (res?.status||'no response'));
         const data = await res.json();
         const regs = (data.success && data.data) ? (data.data.content||[]) : [];
-
         let rows = [];
         regs.forEach(reg => {
           (reg.tests||[]).forEach(t => {
-            if (test && !t.name.toLowerCase().includes(test.toLowerCase())) return;
+            if (test && !(t.name||'').toLowerCase().includes(test.toLowerCase())) return;
+            const regDT  = reg.createdAt||'';
+            const repDT  = reg.updatedAt||'';
+            let tatMin = 480;
+            if (regDT && repDT) {
+              tatMin = Math.round((new Date(repDT) - new Date(regDT)) / 60000);
+              if (tatMin < 0) tatMin = 480;
+            }
             rows.push({
-              regNo: reg.regNo,
+              patRegId:    reg.patient?.id||reg.id,
               patientName: reg.patient?.name||'',
-              regDateTime: reg.createdAt||'',
-              reportDateTime: reg.status==='COMPLETED' ? reg.createdAt : '',
-              testName: t.name,
-              tatDuration: 480,
-              unit: 'Min',
-              tatStatus: 'TAT Achieve'
+              regDateTime: regDT,
+              reportDateTime: repDT,
+              testName:    t.name||'',
+              tatDuration: tatMin,
+              unit:        'Min',
+              tatStatus:   tatMin <= 480 ? 'TAT Achieve' : 'TAT Exceed'
             });
           });
         });
-
         if (!tbody) return;
         tbody.innerHTML = rows.length ? rows.map((r,i) =>
           '<tr style="background:'+(i%2===0?'#f0f7fc':'#fff')+'">' +
-          '<td class="col-mono">'+r.regNo+'</td>' +
+          '<td class="col-mono" style="color:#cc0000;font-weight:700">'+r.patRegId+'</td>' +
           '<td style="font-weight:600">'+r.patientName+'</td>' +
           '<td style="font-size:11px">'+(r.regDateTime?r.regDateTime.replace('T',' ').substring(0,16):'—')+'</td>' +
-          '<td style="font-size:11px">'+(r.reportDateTime?r.reportDateTime.replace('T',' ').substring(0,16):'')+'</td>' +
+          '<td style="font-size:11px">'+(r.reportDateTime?r.reportDateTime.replace('T',' ').substring(0,16):'—')+'</td>' +
           '<td style="font-weight:600;color:#1e40af">'+r.testName+'</td>' +
           '<td class="col-mono" style="text-align:center">'+r.tatDuration+'</td>' +
           '<td style="text-align:center">'+r.unit+'</td>' +
-          '<td><span style="background:#dcfce7;color:#15803d;border-radius:5px;padding:2px 10px;font-size:11px;font-weight:700">'+r.tatStatus+'</span></td>' +
+          '<td><span style="background:'+(r.tatStatus==='TAT Achieve'?'#dcfce7':'#fee2e2')+';color:'+(r.tatStatus==='TAT Achieve'?'#15803d':'#dc2626')+';border-radius:5px;padding:2px 10px;font-size:11px;font-weight:700">'+r.tatStatus+'</span></td>' +
           '</tr>'
         ).join('') :
-        '<tr><td colspan="8" class="empty-state" style="padding:28px">No TAT data found.</td></tr>';
-
+        '<tr><td colspan="8" class="empty-state" style="padding:28px">No TAT data found for selected date range.</td></tr>';
       } catch(e) {
         console.error('TAT error:', e);
-        if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Error loading data.</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Error: '+e.message+'</td></tr>';
       }
     }
 
+
+    async function loadWorksheetData() {
+      const tbody = document.getElementById('wks-tbody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="11" class="empty-state">Loading...</td></tr>';
+      const from = document.getElementById('wks-from')?.value || new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
+      const to   = document.getElementById('wks-to')?.value   || new Date().toISOString().slice(0,10);
+      const name = document.getElementById('wks-name')?.value || '';
+      try {
+        const params = new URLSearchParams({ from: from+'T00:00:00', to: to+'T23:59:59', page:0, size:500 });
+        if (name) params.append('patientName', name);
+        const res  = await apiFetch('http://localhost:8081/api/v1/registrations?'+params);
+        if (!res || !res.ok) throw new Error('Server error: '+(res?.status||0));
+        const data = await res.json();
+        const regs = (data.success && data.data) ? (data.data.content||[]) : [];
+        let rows = [], idx = 0;
+        regs.forEach((reg, ri) => {
+          (reg.tests||[]).forEach(t => {
+            idx++;
+            const rowBg = ri%2===0?'#fff':'#fafcfe';
+            rows.push('<tr style="background:'+rowBg+'">' +
+              '<td style="color:#999">'+idx+'</td>' +
+              '<td class="col-mono">'+reg.regNo+'</td>' +
+              '<td style="font-weight:600">'+(reg.patient?.name||'')+'</td>' +
+              '<td>'+(reg.patient?.gender||'')+'</td>' +
+              '<td>'+(reg.patient?.age||'')+' '+(reg.patient?.ageUnit||'')+'</td>' +
+              '<td style="color:#1e40af;font-weight:600">'+(t.name||'')+'</td>' +
+              '<td style="font-size:11px">'+(t.department||'General')+'</td>' +
+              '<td><span class="tag">'+(t.sampleType||'Blood')+'</span></td>' +
+              '<td style="font-size:11px">'+(reg.createdAt||'').replace('T',' ').substring(0,16)+'</td>' +
+              '<td><span style="background:#15803d;color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">'+(t.status||'PENDING')+'</span></td>' +
+              '<td style="font-size:11px">'+(reg.refDoctor?.name||'Self')+'</td>' +
+            '</tr>');
+          });
+        });
+        if (tbody) tbody.innerHTML = rows.length ? rows.join('') :
+          '<tr><td colspan="11" class="empty-state" style="padding:28px">No data found.</td></tr>';
+      } catch(e) {
+        console.error('Worksheet error:', e);
+        if (tbody) tbody.innerHTML = '<tr><td colspan="11" class="empty-state">Error: '+e.message+'</td></tr>';
+      }
+    }
+
+
+    async function loadPendingData() {
+      const tbody = document.getElementById('pend-tbody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="11" class="empty-state">Loading...</td></tr>';
+      const from = document.getElementById('pend-from')?.value || new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
+      const to   = document.getElementById('pend-to')?.value   || new Date().toISOString().slice(0,10);
+      const name = document.getElementById('pend-name')?.value || '';
+      try {
+        const params = new URLSearchParams({ from: from+'T00:00:00', to: to+'T23:59:59', page:0, size:500 });
+        if (name) params.append('patientName', name);
+        const res  = await apiFetch('http://localhost:8081/api/v1/registrations?'+params);
+        if (!res || !res.ok) throw new Error('Server error: '+(res?.status||0));
+        const data = await res.json();
+        const regs = (data.success && data.data) ? (data.data.content||[]) : [];
+        if (!tbody) return;
+        tbody.innerHTML = regs.length ? regs.map((reg,i) => {
+          const tests = (reg.tests||[]).map(t=>t.name||'').filter(Boolean).join(', ');
+          return '<tr style="background:'+(i%2===0?'#fff7ed':'#fff')+'">' +
+            '<td style="color:#999">'+(i+1)+'</td>' +
+            '<td class="col-mono" style="font-weight:700">'+reg.regNo+'</td>' +
+            '<td style="font-weight:600">'+(reg.patient?.name||'')+'</td>' +
+            '<td>'+(reg.patient?.gender||'')+'</td>' +
+            '<td>'+(reg.patient?.age||'')+' '+(reg.patient?.ageUnit||'')+'</td>' +
+            '<td style="font-size:11px">'+(reg.refDoctor?.name||'Self')+'</td>' +
+            '<td>'+(reg.center||'')+'</td>' +
+            '<td style="font-size:11px;max-width:200px">'+tests+'</td>' +
+            '<td style="font-size:11px">'+(reg.createdAt||'').replace('T',' ').substring(0,16)+'</td>' +
+            '<td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">'+reg.status+'</span></td>' +
+            '<td style="font-family:monospace">'+(reg.patient?.mobile||'')+'</td>' +
+          '</tr>';
+        }).join('') :
+        '<tr><td colspan="11" class="empty-state" style="padding:28px">No pending reports found.</td></tr>';
+      } catch(e) {
+        console.error('Pending error:', e);
+        if (tbody) tbody.innerHTML = '<tr><td colspan="11" class="empty-state">Error: '+e.message+'</td></tr>';
+      }
+    }
+
+
     // ════════════════════════════════════════════════════════
-    //  WORKSHEET
+    //  PANIC REGISTER
     // ════════════════════════════════════════════════════════
     function renderWorksheet() {
       setTimeout(() => loadWorksheetData(), 100);
+      const monthAgo = new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
       return `
   ${ph('Worksheet', 'Daily lab worksheet — tests pending processing.')}
   ${bc('Home', 'Reporting', 'Worksheet')}
@@ -3398,7 +3698,7 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:12px;align-items:flex-end">
       <div>
         <label class="form-label">From Date</label>
-        <input class="inp" type="date" id="wks-from" value="${isoToday()}"/>
+        <input class="inp" type="date" id="wks-from" value="${monthAgo}"/>
       </div>
       <div>
         <label class="form-label">To Date</label>
@@ -3408,7 +3708,9 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
         <label class="form-label">Department</label>
         <select class="inp" id="wks-dept">
           <option value="">All Departments</option>
-          ${departments.map(d=>'<option>'+d+'</option>').join('')}
+          <option>Haematology</option><option>Biochemistry</option>
+          <option>Serology</option><option>Microbiology</option>
+          <option>Pathology</option><option>Endocrinology</option>
         </select>
       </div>
       <div>
@@ -3439,56 +3741,9 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
   </div>`;
     }
 
-    async function loadWorksheetData() {
-      const tbody = document.getElementById('wks-tbody');
-      if (tbody) tbody.innerHTML = '<tr><td colspan="11" class="empty-state">Loading...</td></tr>';
-      const from = document.getElementById('wks-from')?.value || isoToday();
-      const to   = document.getElementById('wks-to')?.value   || isoToday();
-      const name = document.getElementById('wks-name')?.value || '';
-
-      try {
-        const token = authToken || localStorage.getItem('lis_token') || '';
-        const params = new URLSearchParams({ from: toISODate(from), to: toISODate(to).replace('T00:00:00','T23:59:59'), page:0, size:500 });
-        if (name) params.append('patientName', name);
-        const res  = await fetch('http://localhost:8081/api/v1/registrations?'+params,
-          { headers: { 'Authorization': 'Bearer '+token } });
-        const data = await res.json();
-        const regs = (data.success && data.data) ? (data.data.content||[]) : [];
-
-        let rows = [], idx = 0;
-        regs.forEach((reg, ri) => {
-          (reg.tests||[]).forEach(t => {
-            idx++;
-            const rowBg = ri%2===0?'#fff':'#fafcfe';
-            rows.push('<tr style="background:'+rowBg+'">' +
-              '<td style="color:#999">'+idx+'</td>' +
-              '<td class="col-mono">'+reg.regNo+'</td>' +
-              '<td style="font-weight:600">'+(reg.patient?.name||'')+'</td>' +
-              '<td>'+(reg.patient?.gender||'')+'</td>' +
-              '<td>'+(reg.patient?.age||'')+' '+(reg.patient?.ageUnit||'')+'</td>' +
-              '<td style="color:#1e40af;font-weight:600">'+t.name+'</td>' +
-              '<td style="font-size:11px">'+(t.department||t.type||'General')+'</td>' +
-              '<td><span class="tag">'+(t.sampleType||'Blood')+'</span></td>' +
-              '<td style="font-size:11px">'+(reg.createdAt||'').replace('T',' ').substring(0,16)+'</td>' +
-              '<td><span style="background:#15803d;color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">'+(t.status||'PENDING')+'</span></td>' +
-              '<td style="font-size:11px">'+(reg.refDoctor?.name||'Self')+'</td>' +
-            '</tr>');
-          });
-        });
-
-        if (tbody) tbody.innerHTML = rows.length ? rows.join('') :
-          '<tr><td colspan="11" class="empty-state" style="padding:28px">No data found.</td></tr>';
-      } catch(e) {
-        console.error('Worksheet error:', e);
-        if (tbody) tbody.innerHTML = '<tr><td colspan="11" class="empty-state">Error loading data.</td></tr>';
-      }
-    }
-
-    // ════════════════════════════════════════════════════════
-    //  PENDING REPORT
-    // ════════════════════════════════════════════════════════
     function renderPendingReport() {
       setTimeout(() => loadPendingData(), 100);
+      const monthAgo = new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
       return `
   ${ph('Pending Report', 'View all pending test reports.')}
   ${bc('Home', 'Reporting', 'Pending Report')}
@@ -3496,7 +3751,7 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:6px">
         <span>📅</span>
-        <input class="inp" type="date" id="pend-from" value="${isoToday()}" style="width:180px"/>
+        <input class="inp" type="date" id="pend-from" value="${monthAgo}" style="width:180px"/>
       </div>
       <div style="display:flex;align-items:center;gap:6px">
         <span>📅</span>
@@ -3525,52 +3780,49 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
   </div>`;
     }
 
-    async function loadPendingData() {
-      const tbody = document.getElementById('pend-tbody');
-      if (tbody) tbody.innerHTML = '<tr><td colspan="11" class="empty-state">Loading...</td></tr>';
-      const from = document.getElementById('pend-from')?.value || isoToday();
-      const to   = document.getElementById('pend-to')?.value   || isoToday();
-      const name = document.getElementById('pend-name')?.value || '';
-
-      try {
-        const token = authToken || localStorage.getItem('lis_token') || '';
-        const params = new URLSearchParams({
-          from: toISODate(from), to: toISODate(to).replace('T00:00:00','T23:59:59'),
-          status: 'REGISTERED', page:0, size:200
-        });
-        if (name) params.append('patientName', name);
-        const res  = await fetch('http://localhost:8081/api/v1/registrations?'+params,
-          { headers: { 'Authorization': 'Bearer '+token } });
-        const data = await res.json();
-        const regs = (data.success && data.data) ? (data.data.content||[]) : [];
-
-        if (!tbody) return;
-        tbody.innerHTML = regs.length ? regs.map((reg,i) => {
-          const tests = (reg.tests||[]).map(t=>t.name).join(', ');
-          return '<tr style="background:'+(i%2===0?'#fff7ed':'#fff')+'">' +
-            '<td style="color:#999">'+(i+1)+'</td>' +
-            '<td class="col-mono" style="font-weight:700">'+reg.regNo+'</td>' +
-            '<td style="font-weight:600">'+(reg.patient?.name||'')+'</td>' +
-            '<td>'+(reg.patient?.gender||'')+'</td>' +
-            '<td>'+(reg.patient?.age||'')+' '+(reg.patient?.ageUnit||'')+'</td>' +
-            '<td style="font-size:11px">'+(reg.refDoctor?.name||'Self')+'</td>' +
-            '<td>'+(reg.center||'')+'</td>' +
-            '<td style="font-size:11px;max-width:200px">'+tests+'</td>' +
-            '<td style="font-size:11px">'+(reg.createdAt||'').replace('T',' ').substring(0,16)+'</td>' +
-            '<td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">'+reg.status+'</span></td>' +
-            '<td style="font-family:monospace">'+(reg.patient?.mobile||'')+'</td>' +
-          '</tr>';
-        }).join('') :
-        '<tr><td colspan="11" class="empty-state" style="padding:28px">No pending reports found.</td></tr>';
-      } catch(e) {
-        if (tbody) tbody.innerHTML = '<tr><td colspan="11" class="empty-state">Error loading data.</td></tr>';
-      }
+    function renderTATPatientwise() {
+      setTimeout(() => loadTATData('patientwise'), 100);
+      const monthAgo = new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
+      return `
+  ${ph('TAT Report Patient Wise', 'Turnaround time analysis per patient registration.')}
+  ${bc('Home', 'Reporting', 'TAT Patient Wise')}
+  <div class="card mb2" style="padding:14px 18px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span>📅</span>
+        <input class="inp" type="date" id="tat-pw-from" value="${monthAgo}" style="flex:1"/>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span>📅</span>
+        <input class="inp" type="date" id="tat-pw-to" value="${isoToday()}" style="flex:1"/>
+      </div>
+      <input class="inp" id="tat-pw-name" placeholder="Enter Patient Name"/>
+      <input class="inp" id="tat-pw-regno" placeholder="Enter Reg No"/>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="loadTATData('patientwise')">Search</button>
+      <button class="btn btn-ghost" onclick="window.print()">🖨 Report</button>
+    </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="tbl-wrap">
+      <table style="font-size:12.5px">
+        <thead>
+          <tr style="background:#1a3a5c;color:#fff">
+            <th>PatRegID</th><th>Patient Name</th>
+            <th>Register Date Time</th><th>Report Date Time</th>
+            <th>Test Name</th><th>TAT Duration</th><th>Unit</th><th>TAT Status</th>
+          </tr>
+        </thead>
+        <tbody id="tat-pw-tbody">
+          <tr><td colspan="8" class="empty-state" style="padding:28px">Click Search to load TAT data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>`;
     }
 
-    // ════════════════════════════════════════════════════════
-    //  PANIC REGISTER
-    // ════════════════════════════════════════════════════════
-    function renderPanicRegister() {
+        function renderPanicRegister() {
       return `
   ${ph('Panic Register', 'Critical / panic value test results requiring immediate attention.')}
   ${bc('Home', 'Reporting', 'Panic Register')}
@@ -3621,7 +3873,172 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
   </div>`;
     }
 
-    function renderUserManagement() {
+    // ════════════════════════════════════════════════════════
+    //  GRAPHICAL DISPLAY
+    // ════════════════════════════════════════════════════════
+    function renderGraphicalDisplay() {
+      setTimeout(() => loadGraphicalData(), 100);
+      return `
+  ${ph('Graphical Display', 'Visual analytics and statistics for the lab.')}
+  ${bc('Home', 'Front Desk', 'Graphical Display')}
+
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px" id="gd-stats">
+    <div style="background:#dbeafe;border-radius:10px;padding:16px;text-align:center">
+      <div style="font-size:28px;font-weight:800;color:#1d4ed8" id="gd-total">0</div>
+      <div style="font-size:11px;font-weight:600;color:#1d4ed8;text-transform:uppercase">Total Patients</div>
+    </div>
+    <div style="background:#dcfce7;border-radius:10px;padding:16px;text-align:center">
+      <div style="font-size:28px;font-weight:800;color:#15803d" id="gd-today">0</div>
+      <div style="font-size:11px;font-weight:600;color:#15803d;text-transform:uppercase">Today</div>
+    </div>
+    <div style="background:#fef3c7;border-radius:10px;padding:16px;text-align:center">
+      <div style="font-size:28px;font-weight:800;color:#b45309" id="gd-pending">0</div>
+      <div style="font-size:11px;font-weight:600;color:#b45309;text-transform:uppercase">Pending</div>
+    </div>
+    <div style="background:#ede9fe;border-radius:10px;padding:16px;text-align:center">
+      <div style="font-size:28px;font-weight:800;color:#7c3aed" id="gd-tests">0</div>
+      <div style="font-size:11px;font-weight:600;color:#7c3aed;text-transform:uppercase">Tests Today</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+    <!-- Status Distribution -->
+    <div class="card" style="padding:16px">
+      <div style="font-weight:700;font-size:14px;margin-bottom:14px">Patient Status Distribution</div>
+      <div id="gd-status-chart" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+    <!-- Center Distribution -->
+    <div class="card" style="padding:16px">
+      <div style="font-weight:700;font-size:14px;margin-bottom:14px">Center Wise Patients</div>
+      <div id="gd-center-chart" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+  </div>
+
+  <!-- Recent Registrations -->
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="background:#0d2137;padding:8px 14px">
+      <span style="color:#fff;font-weight:700;font-size:13px">Recent Registrations (Last 7 Days)</span>
+    </div>
+    <div class="tbl-wrap">
+      <table style="font-size:12.5px">
+        <thead>
+          <tr style="background:#1a3a5c;color:#fff">
+            <th>Date</th><th>PPID</th><th>Reg No</th><th>Patient Name</th>
+            <th>Gender</th><th>Age</th><th>Tests</th><th>Center</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="gd-tbody">
+          <tr><td colspan="9" class="empty-state" style="padding:28px">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+    }
+
+    async function loadGraphicalData() {
+      try {
+        const token = authToken || localStorage.getItem('lis_token') || '';
+        const headers = { 'Authorization': 'Bearer ' + token };
+        const today = isoToday();
+        const weekAgo = new Date(Date.now()-7*24*60*60*1000).toISOString().slice(0,10);
+
+        const res = await apiFetch('http://localhost:8081/api/v1/registrations?from='+weekAgo+'T00:00:00&to='+today+'T23:59:59&page=0&size=200', { headers });
+        const data = await res.json();
+        const regs = (data.success && data.data) ? (data.data.content||[]) : patients.map(p=>({
+          id:p.id, regNo:p.regNo,
+          patient:{name:p.name,gender:p.gender,age:p.age,ageUnit:p.ageUnit,id:p.id},
+          center:p.center, status:p.status||'REGISTERED',
+          tests:(p.tests||'').split(',').filter(Boolean).map(t=>({name:t.trim()})),
+          createdAt:p.createdAt
+        }));
+
+        // Stats
+        const todayRegs = regs.filter(r => (r.createdAt||'').startsWith(today));
+        const pending = regs.filter(r => r.status==='REGISTERED');
+        const totalTests = regs.reduce((s,r)=>(r.tests||[]).length+s, 0);
+
+        const totalEl = document.getElementById('gd-total');
+        const todayEl = document.getElementById('gd-today');
+        const pendEl  = document.getElementById('gd-pending');
+        const testEl  = document.getElementById('gd-tests');
+        if (totalEl) totalEl.textContent = regs.length;
+        if (todayEl) todayEl.textContent = todayRegs.length;
+        if (pendEl)  pendEl.textContent  = pending.length;
+        if (testEl)  testEl.textContent  = totalTests;
+
+        // Status chart
+        const statusCount = {};
+        const statusColors = {'REGISTERED':'#15803d','SAMPLE_COLLECTED':'#0369a1','TESTED':'#d97706','AUTHORIZED':'#7c3aed','COMPLETED':'#15803d'};
+        regs.forEach(r => { statusCount[r.status] = (statusCount[r.status]||0)+1; });
+        const statusChart = document.getElementById('gd-status-chart');
+        if (statusChart) {
+          statusChart.innerHTML = Object.entries(statusCount).map(([s,c]) => {
+            const pct = Math.round(c/regs.length*100);
+            const col = statusColors[s]||'#6b7280';
+            return '<div>' +
+              '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px">' +
+              '<span style="font-weight:600">'+s+'</span><span>'+c+' ('+pct+'%)</span></div>' +
+              '<div style="background:#e5e7eb;border-radius:4px;height:8px">' +
+              '<div style="background:'+col+';width:'+pct+'%;height:8px;border-radius:4px"></div></div>' +
+            '</div>';
+          }).join('');
+        }
+
+        // Center chart
+        const centerCount = {};
+        regs.forEach(r => { const c=r.center||'OPD'; centerCount[c]=(centerCount[c]||0)+1; });
+        const centerChart = document.getElementById('gd-center-chart');
+        if (centerChart) {
+          const colors = ['#1d4ed8','#15803d','#b45309','#7c3aed'];
+          centerChart.innerHTML = Object.entries(centerCount).map(([c,n],i) => {
+            const pct = Math.round(n/regs.length*100);
+            return '<div>' +
+              '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px">' +
+              '<span style="font-weight:600">'+c+'</span><span>'+n+' ('+pct+'%)</span></div>' +
+              '<div style="background:#e5e7eb;border-radius:4px;height:8px">' +
+              '<div style="background:'+colors[i%4]+';width:'+pct+'%;height:8px;border-radius:4px"></div></div>' +
+            '</div>';
+          }).join('');
+        }
+
+        // Table
+        const tbody = document.getElementById('gd-tbody');
+        if (tbody) {
+          tbody.innerHTML = regs.length ? regs.slice(0,20).map((reg,idx) => {
+            const rowBg = idx%2===0?'#f0f7fc':'#fff';
+            const tests = (reg.tests||[]).map(t=>t.name).join(', ');
+            return '<tr style="background:'+rowBg+'">' +
+              '<td style="font-size:11px">'+(reg.createdAt||'').replace('T',' ').substring(0,16)+'</td>' +
+              '<td class="col-mono" style="font-weight:700;color:#cc0000">'+(reg.patient?.id||reg.id)+'</td>' +
+              '<td class="col-mono">'+reg.regNo+'</td>' +
+              '<td style="font-weight:600"><span class="text-link" onclick="searchByPPID('+(reg.patient?.id||reg.id)+')">'+
+              (reg.patient?.name||'')+'</span></td>' +
+              '<td>'+(reg.patient?.gender||'')+'</td>' +
+              '<td>'+(reg.patient?.age||'')+' '+(reg.patient?.ageUnit||'')+'</td>' +
+              '<td style="font-size:11px;max-width:150px">'+tests+'</td>' +
+              '<td>'+(reg.center||'')+'</td>' +
+              '<td><span style="background:#15803d;color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">'+(reg.status||'REG')+'</span></td>' +
+            '</tr>';
+          }).join('') :
+          '<tr><td colspan="9" class="empty-state" style="padding:28px">No data found.</td></tr>';
+        }
+      } catch(e) {
+        console.error('Graphical data error:', e);
+      }
+    }
+
+    function searchByPPID(ppid) {
+      // Navigate to edit patient and search by PPID
+      navigate('clinical-history-edit');
+      setTimeout(() => {
+        const nameEl = document.getElementById('che-name');
+        if (nameEl) { nameEl.value = ''; }
+        // Load all data for this patient
+        loadCHEData();
+      }, 200);
+    }
+
+        function renderUserManagement() {
       return `
   ${ph('User Management', 'Manage system users, roles, and access permissions.')}
   ${bc('Home', 'Administration', 'User Management')}
@@ -6365,27 +6782,7 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
     // ═══════════════════════════════════════════════════════════════
 
     // 1. Fixed apiFetch
-    async function apiFetch(path, opts = {}) {
-      const token = authToken || localStorage.getItem('lis_token') || '';
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
-        ...(opts.headers || {})
-      };
-      try {
-        const res = await fetch('http://localhost:8081' + path, { ...opts, headers });
-        if (res.status === 401) { clearAuth(); return null; }
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          console.warn('API error', res.status, path, err);
-          return null;
-        }
-        return await res.json();
-      } catch (e) {
-        console.warn('API call failed:', path, e.message);
-        return null;
-      }
-    }
+
 
     // 2. Load patients from backend
     async function loadPatients() {
@@ -6774,6 +7171,77 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
       document.getElementById('sb-urole').textContent = currentUser.roles?.[0] || 'ADMIN';
       buildSidebar();
       navigate('dashboard');
+      loadInitialData();
+    }
+
+    async function loadInitialData() {
+      try {
+        const token = authToken || localStorage.getItem('lis_token') || '';
+        const headers = { 'Authorization': 'Bearer ' + token };
+        const today = isoToday();
+        const monthAgo = new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
+
+        // Load last 30 days registrations
+        const res = await fetch('http://localhost:8081/api/v1/registrations?from='+monthAgo+'T00:00:00&to='+today+'T23:59:59&page=0&size=500', { headers });
+        const data = await res.json();
+        if (data.success && data.data) {
+          const regs = data.data.content || [];
+          patients = regs.map(r => ({
+            id: r.id,
+            regNo: r.regNo,
+            name: r.patient?.name || '',
+            gender: r.patient?.gender || '',
+            age: r.patient?.age || '',
+            ageUnit: r.patient?.ageUnit || 'Years',
+            mobile: r.patient?.mobile || '',
+            email: r.patient?.email || '',
+            address: r.patient?.address || '',
+            refDoc: r.refDoctor?.name || '',
+            center: r.center || 'OPD',
+            tests: (r.tests||[]).map(t=>t.name).join(', '),
+            testObjects: r.tests || [],
+            charges: r.totalAmount || 0,
+            paid: r.paidAmount || 0,
+            balance: r.balanceAmount || 0,
+            discount: r.discountAmount || 0,
+            status: r.status || 'REGISTERED',
+            createdAt: r.createdAt || '',
+            createdBy: r.createdBy || 'admin'
+          }));
+          console.log('Loaded ' + patients.length + ' patients from DB');
+          if (currentPage === 'dashboard') navigate('dashboard');
+        }
+
+        // Load tests catalog
+        const tRes = await fetch('http://localhost:8081/api/v1/tests?page=0&size=500', { headers });
+        const tData = await tRes.json();
+        if (tData.success && tData.data) {
+          const dbTests = tData.data.content || [];
+          if (dbTests.length > 0) {
+            testCatalog = dbTests.map(t => ({
+              id: t.id, code: t.code||'', name: t.name||'',
+              type: t.type||'Test', rate: t.rate||0,
+              department: t.department||'', sampleType: t.sampleType||'Blood',
+              shortCode: t.shortCode||''
+            }));
+          }
+        }
+
+        // Load referring doctors
+        const dRes = await fetch('http://localhost:8081/api/v1/referring-doctors?page=0&size=500', { headers });
+        const dData = await dRes.json();
+        if (dData.success && dData.data) {
+          const dbDocs = dData.data.content || [];
+          if (dbDocs.length > 0) {
+            refDoctors = dbDocs.map(d => ({
+              id: d.id, code: d.code||'', name: d.name||'',
+              mobile: d.mobile||'', email: d.email||''
+            }));
+          }
+        }
+      } catch(e) {
+        console.error('Initial data load error:', e);
+      }
     }
 
     console.log('✅ Integration Patch v4 loaded');
