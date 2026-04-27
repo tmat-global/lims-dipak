@@ -2035,6 +2035,13 @@
         ]
       },
       {
+        id: 'center-account', icon: '🏥', label: 'Center Account', children: [
+          { label: 'Center List',     path: 'center-list' },
+          { label: 'Add/Edit Center', path: 'add-edit-center' },
+          { label: 'Center Ledger',   path: 'center-ledger' },
+        ]
+      },
+      {
         id: 'mis', icon: '📈', label: 'MIS Reports', sec: 'ANALYTICS', children: [
           { label: 'Daily Summary', path: 'dashboard' },
           { label: 'Monthly Report', path: 'dashboard' },
@@ -2099,6 +2106,7 @@
       'sample-accept': renderSamplePage, 'user-management': renderUserManagement,
       'authorize-report': renderAuthorizeReport,
       'test-result-entry': renderTestResultEntry,
+      'add-result': renderAddResult,
       'account-section': renderAccountSection,
       'bill-desk': renderBillDesk,
       'pay-bill': renderPayBill,
@@ -2113,6 +2121,9 @@
       'add-banner': renderAddBanner, 'add-routine': renderAddRoutine,
       'add-machine': renderAddMachine, 'machine-map': renderMachineMap,
       'sql-backup': renderSQLBackup,
+      'center-list': renderCenterList,
+      'add-edit-center': renderAddEditCenter,
+      'center-ledger': renderCenterLedger,
       'tat-testwise': renderTATTestwise,
       'tat-patientwise': renderTATPatientwise,
       'worksheet': renderWorksheet,
@@ -2322,15 +2333,15 @@
        </div>
       <div><div class="card-title" style="font-size:13px">Tests &amp; Packages</div></div>
       <div class="flex" style="gap:8px">
-        <div class="search-wrap" style="width:260px">
+        <div class="search-wrap" style="flex:1">
           <input class="inp" id="test-inp" placeholder="Search test or package…" oninput="searchTests(this.value)" autocomplete="off"/>
           <div class="search-drop hidden" id="test-drop"></div>
-          <!-- Quick Test Button -->
           <button class="btn btn-outline-steel btn-sm"
-          style="height:38px; white-space:nowrap;"
-          onclick="addQuickTest()">
-          ⚡ Quick Test
-          </button>
+        style="height:38px; white-space:nowrap; background-color:#007BFF; color:white;"
+        onclick="addQuickTest()">
+  ⚡ Quick Test
+</button>
+
         </div>
       </div>
     </div>
@@ -3399,40 +3410,296 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
   </div>`;
     }
 
+    let scData = [];
+
     function renderSamplePage() {
       const isAccept = currentPage === 'sample-accept';
       const title = isAccept ? 'Sample Acceptance' : 'Sample Collection';
+      const monthAgo = new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
+      setTimeout(() => loadSampleData(), 100);
       return `
   ${ph(title, isAccept ? 'Accept and log incoming samples.' : 'Collect and label samples for patients.')}
   ${bc('Home', 'Sample Management', title)}
-  <div class="card">
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:12px;margin-bottom:16px;align-items:flex-end">
-      <div><label class="form-label">From Date</label><input class="inp" type="date" value="${isoToday()}"/></div>
-      <div><label class="form-label">To Date</label><input class="inp" type="date" value="${isoToday()}"/></div>
-      <div><label class="form-label">Patient Name</label><input class="inp" placeholder="Name"/></div>
-      <div><label class="form-label">Reg. No.</label><input class="inp" placeholder="Registration No."/></div>
-      <button class="btn btn-primary" onclick="navigate('${currentPage}')">Search</button>
+  <div class="card mb2" style="padding:14px 18px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:12px;margin-bottom:10px;align-items:flex-end">
+      <div><label class="form-label">From Date</label><input class="inp" type="date" id="sc-from" value="${monthAgo}"/></div>
+      <div><label class="form-label">To Date</label><input class="inp" type="date" id="sc-to" value="${isoToday()}"/></div>
+      <div><label class="form-label">Patient Name</label><input class="inp" id="sc-name" placeholder="Name"/></div>
+      <div><label class="form-label">Reg. No.</label><input class="inp" id="sc-regno" placeholder="Registration No."/></div>
+      <button class="btn btn-primary" onclick="loadSampleData()">Search</button>
     </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:flex-end">
+      <div><label class="form-label">PPID No.</label><input class="inp" id="sc-ppid" placeholder="Enter PPID No."/></div>
+      <div><label class="form-label">Barcode No.</label><input class="inp" id="sc-barcode" placeholder="Enter Barcode No."/></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer">
+          <input type="radio" name="sc-filter" value="all" checked onchange="loadSampleData()"> All
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer">
+          <input type="radio" name="sc-filter" value="accept" onchange="loadSampleData()"> Accept
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer">
+          <input type="radio" name="sc-filter" value="pending" onchange="loadSampleData()"> Pending
+        </label>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
     <div class="tbl-wrap">
-      <table><thead><tr><th>Reg. No.</th><th>Name</th><th>Gender</th><th>Age</th><th>Center</th><th>Tests</th><th>Status</th><th>Action</th></tr></thead>
-        <tbody>${!patients.length ? '<tr><td colspan="8" class="empty-state" style="padding:28px">No patients found</td></tr>' : patients.slice(0, 10).map(p => `<tr>
-          <td class="col-mono">${p.regNo}</td><td style="font-weight:600">${p.name}</td>
-          <td>${p.gender}</td><td>${p.age} ${p.ageUnit}</td><td>${p.center}</td>
-          <td class="trunc">${p.tests}</td><td>${badge(p.status || 'Reg')}</td>
-          <td><button class="btn btn-${isAccept ? 'success' : 'primary'} btn-sm" onclick="collectSample(${p.id},'${isAccept ? 'SamAcc' : 'SamCollect'}')">
-            ${isAccept ? 'Accept' : 'Collect'}
-          </button></td>
-        </tr>`).join('')}</tbody>
+      <table style="font-size:12.5px">
+        <thead>
+          <tr style="background:#1a3a5c;color:#fff">
+            <th>Reg. No.</th><th>Name</th><th>Gender</th><th>Age</th>
+            <th>Center</th><th>Ref Doc</th><th>Tests</th>
+            ${isAccept ? '<th>Barcode</th><th>Accept/Reject</th><th>Reject Remark</th>' : '<th>Barcode</th>'}
+            <th>Sample Type</th><th>Status</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="sc-tbody">
+          <tr><td colspan="${isAccept ? 13 : 11}" class="empty-state" style="padding:28px">Loading...</td></tr>
+        </tbody>
       </table>
     </div>
   </div>`;
     }
+
+    async function loadSampleData() {
+      const isAccept = currentPage === 'sample-accept';
+      const tbody = document.getElementById('sc-tbody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="13" class="empty-state">Loading...</td></tr>';
+      const from  = document.getElementById('sc-from')?.value  || new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
+      const to    = document.getElementById('sc-to')?.value    || new Date().toISOString().slice(0,10);
+      const name  = document.getElementById('sc-name')?.value  || '';
+      const regno = document.getElementById('sc-regno')?.value || '';
+      try {
+        const params = new URLSearchParams({ from: from+'T00:00:00', to: to+'T23:59:59', page:0, size:200 });
+        if (name)  params.append('patientName', name);
+        if (regno) params.append('regNo', regno);
+        const res  = await apiFetch('http://localhost:8081/api/v1/registrations?'+params);
+        if (!res || !res.ok) throw new Error('Server error');
+        const data = await res.json();
+        scData = (data.success && data.data) ? (data.data.content||[]) : [];
+        renderSampleTable();
+      } catch(e) {
+        // fallback to local patients
+        scData = patients.map(p => ({
+          id: p.id, regNo: p.regNo,
+          patient: { name: p.name, gender: p.gender, age: p.age, ageUnit: p.ageUnit, id: p.id },
+          center: p.center, refDoctor: { name: p.refDoc },
+          tests: (p.tests||'').split(',').filter(Boolean).map(t => ({ name: t.trim(), sampleType: 'Blood' })),
+          status: p.status||'REGISTERED', createdAt: p.createdAt
+        }));
+        renderSampleTable();
+      }
+    }
+
+    function renderSampleTable() {
+      const isAccept = currentPage === 'sample-accept';
+      const tbody = document.getElementById('sc-tbody');
+      if (!tbody) return;
+      if (!scData.length) {
+        tbody.innerHTML = '<tr><td colspan="13" class="empty-state" style="padding:28px">No patients found.</td></tr>';
+        return;
+      }
+
+      let rows = [];
+      scData.forEach((reg, ri) => {
+        const tests = reg.tests || [];
+        const rowBg0 = ri%2===0?'#fff':'#f0f7fc';
+        const rowBg1 = ri%2===0?'#f8fcff':'#e8f3fb';
+        const refDoc = reg.refDoctor?.name || 'Self';
+        const patName = reg.patient?.name || '';
+        const patGender = reg.patient?.gender || '';
+        const patAge = (reg.patient?.age||'') + ' ' + (reg.patient?.ageUnit||'');
+        const center = reg.center || 'OPD';
+        const regTests = tests.length ? tests : [{ name: '', sampleType: 'Blood', code: '' }];
+
+        regTests.forEach((t, ti) => {
+          const isFirst = ti === 0;
+          const rowBg = ti%2===0 ? rowBg0 : rowBg1;
+          const barcode = reg.regNo + (t.code||'').substring(0,3) + String(ti+1);
+          const sampleType = t.sampleType || 'Blood';
+          const testName = t.name || '';
+
+          let row = '<tr style="background:'+rowBg+'">';
+
+          // First row cells (rowspan)
+          if (isFirst) {
+            row += '<td class="col-mono" style="font-weight:700;vertical-align:top" rowspan="'+regTests.length+'">'+reg.regNo+'</td>';
+            row += '<td style="font-weight:600;vertical-align:top" rowspan="'+regTests.length+'">'+patName+'</td>';
+            row += '<td style="vertical-align:top" rowspan="'+regTests.length+'">'+patGender+'</td>';
+            row += '<td style="vertical-align:top" rowspan="'+regTests.length+'">'+patAge+'</td>';
+            row += '<td style="vertical-align:top" rowspan="'+regTests.length+'">'+center+'</td>';
+            row += '<td style="font-size:11px;vertical-align:top" rowspan="'+regTests.length+'">'+refDoc+'</td>';
+          }
+
+          // Per-test cells
+          row += '<td style="font-weight:600;color:#1e40af;font-size:12px">'+testName+'</td>';
+          row += '<td><span style="background:#f0f7fc;border:1px solid #b8d0e4;padding:2px 6px;border-radius:4px;font-family:monospace;font-size:11px">'+barcode+'</span></td>';
+
+          if (isAccept) {
+            row += '<td>' +
+              '<label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin-bottom:2px">' +
+              '<input type="radio" name="ar-'+reg.id+'-'+ti+'" value="accept" checked>' +
+              '<span style="color:#15803d;font-size:11px;font-weight:600">Accept</span></label>' +
+              '<label style="display:flex;align-items:center;gap:3px;cursor:pointer">' +
+              '<input type="radio" name="ar-'+reg.id+'-'+ti+'" value="reject">' +
+              '<span style="color:#dc2626;font-size:11px;font-weight:600">Reject</span></label>' +
+              '</td>';
+            row += '<td><input class="inp" id="remark-'+reg.id+'-'+ti+'" placeholder="Reject remark" style="width:110px;padding:3px 6px;font-size:11px"/></td>';
+          }
+
+          row += '<td style="font-size:11px">'+sampleType+'</td>';
+
+          if (isFirst) {
+            row += '<td style="vertical-align:top" rowspan="'+regTests.length+'">'+badge(reg.status||'REGISTERED')+'</td>';
+            row += '<td style="vertical-align:top" rowspan="'+regTests.length+'">' +
+              '<div style="display:flex;flex-direction:column;gap:4px">' +
+              (isAccept ?
+                '<button class="btn btn-success btn-xs" onclick="submitSampleAction('+reg.id+')">Submit</button>'
+              :
+                '<button class="btn btn-primary btn-xs" onclick="collectSampleNew('+reg.id+')">Collect</button>'
+              ) +
+              '<button class="btn btn-outline-steel btn-xs" onclick="openBarcodePrint('+reg.id+')">🖨 Print</button>' +
+              '</div>' +
+            '</td>';
+          }
+
+          row += '</tr>';
+          rows.push(row);
+        });
+      });
+
+      tbody.innerHTML = rows.join('');
+    }
+
+    function openBarcodePrint(regId) {
+      const reg = scData.find(r => r.id === regId);
+      if (!reg) return;
+      const tests = reg.tests || [];
+      const patName = reg.patient?.name || '';
+      const patAge = (reg.patient?.age||'') + '/' + (reg.patient?.ageUnit||'Year');
+      const patGender = reg.patient?.gender || '';
+      const mobile = reg.patient?.mobile || '0000000000';
+      const center = reg.center || 'OPD';
+      const refDoc = reg.refDoctor?.name || 'SELF';
+
+      const testRows = tests.map((t, i) => {
+        const barcode = reg.regNo + (t.code||'').substring(0,3) + String(i+1);
+        const stCode = 'SL' + (t.code||'BC').substring(0,3).toUpperCase();
+        return '<tr>' +
+          '<td style="padding:4px 8px;text-align:center"><input type="checkbox" checked class="bc-chk" data-barcode="'+barcode+'" data-test="'+t.name+'"/></td>' +
+          '<td style="padding:4px 8px;font-family:monospace">'+barcode+'</td>' +
+          '<td style="padding:4px 8px;font-weight:600">'+stCode+'</td>' +
+          '<td style="padding:4px 8px">'+t.name+'</td>' +
+        '</tr>';
+      }).join('');
+
+      const html = `<!DOCTYPE html><html><head><title>Barcode Print</title>
+        <style>
+          body{font-family:Arial,sans-serif;margin:10px;font-size:13px}
+          table{border-collapse:collapse;width:100%}
+          th{background:#5b9bd5;color:#fff;padding:6px 8px;text-align:left}
+          td{border-bottom:1px solid #eee;padding:4px 8px}
+          .hdr{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;border:1px solid #ccc;padding:6px;margin-bottom:8px;font-size:12px}
+          .hdr-cell{display:flex;gap:4px}<br>
+          .btn{padding:6px 16px;border:none;border-radius:4px;cursor:pointer;font-weight:600;font-size:13px}
+          .btn-print{background:#26c0b5;color:#fff}
+          .btn-close{background:#888;color:#fff}
+          .btn-dept{background:#26c0b5;color:#fff}
+          .btns{display:flex;gap:8px;margin-top:12px}
+        </style>
+        <scr`+'ipt src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></scr'+'ipt>'+`
+      </head><body>
+        <div style="font-weight:700;margin-bottom:6px">Barcode Print</div>
+        <div class="hdr">
+          <div class="hdr-cell"><b>Reg. Number :</b> ${reg.regNo}</div>
+          <div class="hdr-cell"><b>Name :</b> ${patName}</div>
+          <div class="hdr-cell"><b>Age :</b> ${patAge}</div>
+          <div class="hdr-cell"><b>Gender :</b> ${patGender}</div>
+          <div class="hdr-cell"><b>Mobile Number :</b> ${mobile}</div>
+          <div class="hdr-cell"><b>Center :</b> ${center}</div>
+          <div class="hdr-cell"><b>Date :</b> ${new Date().toLocaleDateString('en-GB')}</div>
+          <div class="hdr-cell"><b>Ref Doc:</b> ${refDoc}</div>
+        </div>
+        <table>
+          <thead><tr><th>Print</th><th>Barcode</th><th>ST Codes</th><th>Test Names</th></tr></thead>
+          <tbody>${testRows}</tbody>
+        </table>
+        <div class="btns">
+          <button class="btn btn-print" onclick="printSelected()">Print</button>
+          <button class="btn btn-close" onclick="window.close()">Close</button>
+          <button class="btn btn-dept" onclick="printSelected()">Print Deptwise</button>
+        </div>
+        <div id="bc-area" style="margin-top:16px"></div>
+        <scr`+'ipt>'+`
+          function printSelected() {
+            const area = document.getElementById('bc-area');
+            area.innerHTML = '';
+            document.querySelectorAll('.bc-chk:checked').forEach(chk => {
+              const div = document.createElement('div');
+              div.style.cssText = 'display:inline-block;margin:6px;text-align:center;border:1px solid #eee;padding:6px';
+              div.innerHTML = '<div style="font-size:11px;font-weight:700;margin-bottom:2px">' + chk.dataset.test + '</div>' +
+                '<svg class="bc-svg"></svg>';
+              area.appendChild(div);
+              JsBarcode(div.querySelector('.bc-svg'), chk.dataset.barcode, {width:1.5, height:50, displayValue:true, fontSize:10});
+            });
+            setTimeout(() => window.print(), 500);
+          }
+        </scr`+'ipt>'+`
+      </body></html>`;
+
+      const win = window.open('', '_blank', 'width=800,height=600');
+      win.document.write(html);
+      win.document.close();
+    }
+    async function collectSampleNew(regId) {
+      try {
+        const res = await apiFetch('http://localhost:8081/api/v1/registrations/'+regId+'/status?status=SAMPLE_COLLECTED', { method: 'PATCH' });
+        showToast('Sample collected!', 'success');
+        // Update local
+        const reg = scData.find(r => r.id === regId);
+        if (reg) reg.status = 'SAMPLE_COLLECTED';
+        const p = patients.find(x => x.id === regId);
+        if (p) p.status = 'SAMPLE_COLLECTED';
+        renderSampleTable();
+      } catch(e) {
+        showToast('Error: '+e.message, 'error');
+      }
+    }
+
+    async function submitSampleAction(regId) {
+      const isAccept = document.querySelector('input[name="ar-'+regId+'"]:checked')?.value === 'accept';
+      const remark   = document.getElementById('remark-'+regId)?.value || '';
+      const status   = isAccept ? 'SAMPLE_ACCEPTED' : 'SAMPLE_REJECTED';
+      try {
+        const res = await apiFetch('http://localhost:8081/api/v1/registrations/'+regId+'/status?status='+status, { method: 'PATCH' });
+        showToast('Sample '+(isAccept?'accepted':'rejected')+'!', isAccept?'success':'error');
+        const reg = scData.find(r => r.id === regId);
+        if (reg) reg.status = status;
+        renderSampleTable();
+      } catch(e) {
+        showToast('Error: '+e.message, 'error');
+      }
+    }
+
+    function printSampleLabel(barcode, regNo, patientName) {
+      const win = window.open('', '_blank', 'width=400,height=300');
+      const html = '<html><head><title>Barcode</title></head><body style="text-align:center;padding:20px">' +
+        '<div style="font-size:14px;font-weight:700;margin-bottom:8px">' + patientName + '</div>' +
+        '<div style="font-size:12px;margin-bottom:8px">Reg: ' + regNo + '</div>' +
+        '<svg id="bc"></svg>' +
+        '<scr' + 'ipt src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></scr' + 'ipt>' +
+        '<scr' + 'ipt>window.onload=function(){JsBarcode("#bc","' + barcode + '",{width:2,height:60,displayValue:true});setTimeout(function(){window.print();},500);}</scr' + 'ipt>' +
+        '</body></html>';
+      win.document.write(html);
+      win.document.close();
+    }
+
     function collectSample(id, newStatus) {
       const p = patients.find(x => x.id === id); if (!p) return;
       p.status = newStatus;
-      const sq = sampleQueue.find(s => s.id === id);
-      if (sq) sq.resultStatus = 'pending';
-      showToast(`Sample ${newStatus === 'SamAcc' ? 'accepted' : 'collected'} for ${p.name}`, 'success');
+      showToast('Sample '+(newStatus==='SamAcc'?'accepted':'collected')+' for '+p.name, 'success');
       navigate(currentPage);
     }
 
@@ -4377,7 +4644,289 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
     function renderMachineMap() { return `${ph('Machine Mapping', 'Map tests to instruments for automatic sample routing.')}${bc('Home', 'Master Configuration', 'Machine Map')}<div class="card"><div class="flex-wrap mb3" style="justify-content:space-between"><p style="color:var(--text-muted);font-size:12.5px">Configure which machine processes each test.</p><button class="btn btn-success" onclick="openMapModal(null)">+ Add Mapping</button></div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>Test Code</th><th>Test Name</th><th>Machine Code</th><th>Machine Name</th><th>Department</th><th>Actions</th></tr></thead><tbody>${machineMap.map((m, i) => `<tr><td style="color:var(--text-faint)">${i + 1}</td><td><span class="mmap-badge">${m.testCode}</span></td><td style="font-weight:600">${m.testName}</td><td class="col-mono">${m.machineCode}</td><td>${m.machineName}</td><td style="font-size:12px;color:var(--text-muted)">${machines.find(x => x.code === m.machineCode)?.dept || '—'}</td><td><div class="flex" style="gap:6px"><button class="btn btn-outline-steel btn-xs" onclick="openMapModal(${m.id})">Edit</button><button class="btn btn-danger btn-xs" onclick="machineMap=machineMap.filter(x=>x.id!==${m.id});navigate('machine-map')">Remove</button></div></td></tr>`).join('')}</tbody></table></div></div>`; }
     function openMapModal(id) { const m = id ? machineMap.find(x => x.id === id) : null; showModal(`<div class="mb2"><label class="form-label">Test</label><select class="inp" id="mapm-test"><option value="">— Select Test —</option>${testCatalog.map(t => `<option value="${t.id}" data-code="${t.code}" data-name="${t.name}" ${m?.testCode === t.code ? 'selected' : ''}>${t.name} (${t.code})</option>`).join('')}</select></div><div class="mb2"><label class="form-label">Machine</label><select class="inp" id="mapm-mach"><option value="">— Select Machine —</option>${machines.map(mc => `<option value="${mc.id}" data-code="${mc.code}" data-name="${mc.name}" ${m?.machineCode === mc.code ? 'selected' : ''}>${mc.name} (${mc.code})</option>`).join('')}</select></div><div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-success" onclick="saveMap(${id || 'null'})">Save Mapping</button></div>`, m ? 'Edit Mapping' : 'Add Mapping', 'modal-sm'); }
     function saveMap(id) { const tEl = document.getElementById('mapm-test'); const mEl = document.getElementById('mapm-mach'); const tOpt = tEl?.options[tEl.selectedIndex]; const mOpt = mEl?.options[mEl.selectedIndex]; if (!tEl?.value || !mEl?.value) { showToast('Select both test and machine', 'warn'); return; } const payload = { testCode: tOpt.dataset.code, testName: tOpt.dataset.name, machineCode: mOpt.dataset.code, machineName: mOpt.dataset.name }; if (id !== 'null') { const m = machineMap.find(x => x.id == id); if (m) Object.assign(m, payload); showToast('Updated'); } else { machineMap.push({ id: Date.now(), ...payload }); showToast('Added'); } closeModal(); navigate('machine-map'); }
-    function renderSQLBackup() { return `${ph('Database Backup', 'Create and manage system database backups.')}${bc('Home', 'Master Configuration', 'SQL Backup')}<div class="card" style="max-width:700px"><div style="background:var(--steel-25);border:1px solid var(--steel-150);border-left:3px solid var(--steel-400);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:12.5px;color:var(--text-secondary)">Create daily backups to prevent data loss. Scheduled backups run automatically at midnight.</div><div class="g2 mb3"><div class="card" style="text-align:center;border:1.5px solid var(--border-subtle)"><div style="font-size:36px;margin-bottom:10px">🗄️</div><div style="font-weight:700;margin-bottom:4px">Manual Backup</div><div style="color:var(--text-muted);font-size:12px;margin-bottom:14px">Create a backup now</div><button class="btn btn-primary fw" onclick="doBackup()">Create Backup Now</button></div><div class="card" style="text-align:center;border:1.5px solid var(--border-subtle)"><div style="font-size:36px;margin-bottom:10px">⏰</div><div style="font-weight:700;margin-bottom:4px">Scheduled Backup</div><div style="color:var(--text-muted);font-size:12px;margin-bottom:14px">Auto nightly backup</div><label class="tog-wrap" style="justify-content:center"><label class="tog"><input type="checkbox" checked><span class="tog-sl"></span></label>Daily at 11:59 PM</label></div></div><div class="tbl-wrap"><table><thead><tr><th>Date &amp; Time</th><th>File Size</th><th>Type</th><th>Status</th><th>Action</th></tr></thead><tbody><tr><td class="col-mono">10-03-2026 23:59</td><td class="mono">2.4 MB</td><td>Scheduled</td><td><span class="badge b-printed">Success</span></td><td><button class="btn btn-outline-steel btn-xs">Download</button></td></tr><tr><td class="col-mono">09-03-2026 23:59</td><td class="mono">2.3 MB</td><td>Scheduled</td><td><span class="badge b-printed">Success</span></td><td><button class="btn btn-outline-steel btn-xs">Download</button></td></tr></tbody></table></div></div>`; }
+    // ════════════════════════════════════════════════════════
+    //  CENTER ACCOUNT MODULE
+    // ════════════════════════════════════════════════════════
+    let centers = [
+      { id:1, code:'OPD',  name:'OPD',  mobile:'', email:'', contactName:'', rateType:'MRP Rate', address:'' },
+      { id:2, code:'IPD',  name:'IPD',  mobile:'', email:'', contactName:'', rateType:'MRP Rate', address:'' },
+      { id:3, code:'CORP', name:'Corporate', mobile:'', email:'', contactName:'', rateType:'MRP Rate', address:'' },
+    ];
+
+    function renderCenterList() {
+      return `
+  ${ph('Center List', 'View and manage all laboratory centers.')}
+  ${bc('Home', 'Center Account', 'Center List')}
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border-subtle)">
+      <div style="font-weight:700;font-size:14px">All Centers (${centers.length})</div>
+      <button class="btn btn-primary btn-sm" onclick="navigate('add-edit-center')">+ Add New Center</button>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr style="background:#1a3a5c;color:#fff">
+            <th>Code</th><th>Name</th><th>Address</th><th>Mobile No</th>
+            <th>Email</th><th>Contact Name</th><th>Rate Type</th><th>Edit</th><th>Delete</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${centers.map((c,i) => `<tr style="background:${i%2===0?'#fff':'#f8fafc'}">
+            <td class="col-mono" style="font-weight:700;color:#1e40af">${c.code}</td>
+            <td style="font-weight:600">${c.name}</td>
+            <td style="font-size:11px">${c.address||'—'}</td>
+            <td style="font-family:monospace">${c.mobile||'—'}</td>
+            <td style="font-size:11px">${c.email||'—'}</td>
+            <td>${c.contactName||'—'}</td>
+            <td><span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:4px;font-size:11px">${c.rateType}</span></td>
+            <td><button class="btn btn-outline-steel btn-xs" onclick="editCenter(${c.id})">Edit</button></td>
+            <td><button class="btn btn-danger btn-xs" onclick="deleteCenter(${c.id})">Delete</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+    }
+
+    function editCenter(id) {
+      const c = centers.find(x => x.id === id);
+      if (c) { navigate('add-edit-center', { center: c }); }
+    }
+
+    function deleteCenter(id) {
+      if (!confirm('Delete this center?')) return;
+      centers = centers.filter(x => x.id !== id);
+      navigate('center-list');
+      showToast('Center deleted!', 'success');
+    }
+
+    function renderAddEditCenter() {
+      const c = pageData?.center || null;
+      return `
+  ${ph(c ? 'Edit Center' : 'Add New Center', 'Create or update center information and test rates.')}
+  ${bc('Home', 'Center Account', c ? 'Edit Center' : 'Add Center')}
+  <div class="card" style="max-width:800px">
+    <div style="font-weight:700;font-size:14px;margin-bottom:18px;color:#1e40af">
+      ${c ? '✏️ Edit Center — '+c.name : '➕ Add New Center'}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div>
+        <label class="form-label">Center Code <span style="color:#dc2626">*</span></label>
+        <input class="inp" id="ctr-code" value="${c?.code||''}" placeholder="e.g. OPD, IPD, CORP" style="text-transform:uppercase"/>
+      </div>
+      <div>
+        <label class="form-label">Center Name <span style="color:#dc2626">*</span></label>
+        <input class="inp" id="ctr-name" value="${c?.name||''}" placeholder="Enter Center Name"/>
+      </div>
+      <div>
+        <label class="form-label">Mobile No</label>
+        <input class="inp" id="ctr-mobile" value="${c?.mobile||''}" placeholder="Mobile Number"/>
+      </div>
+      <div>
+        <label class="form-label">Email</label>
+        <input class="inp" id="ctr-email" type="email" value="${c?.email||''}" placeholder="Email Address"/>
+      </div>
+      <div>
+        <label class="form-label">Contact Name</label>
+        <input class="inp" id="ctr-contact" value="${c?.contactName||''}" placeholder="Contact Person Name"/>
+      </div>
+      <div>
+        <label class="form-label">Rate Type</label>
+        <select class="inp" id="ctr-ratetype">
+          <option ${c?.rateType==='MRP Rate'?'selected':''}>MRP Rate</option>
+          <option ${c?.rateType==='Client Rate'?'selected':''}>Client Rate</option>
+          <option ${c?.rateType==='Special Rate'?'selected':''}>Special Rate</option>
+        </select>
+      </div>
+      <div style="grid-column:1/3">
+        <label class="form-label">Address</label>
+        <textarea class="inp" id="ctr-address" rows="2" placeholder="Center Address">${c?.address||''}</textarea>
+      </div>
+    </div>
+
+    <!-- Test Rate Configuration -->
+    <div style="border-top:2px solid var(--border-subtle);padding-top:16px;margin-top:8px">
+      <div style="font-weight:700;font-size:13px;margin-bottom:12px;color:#1e40af">🧪 Test Rate Configuration</div>
+      <div style="margin-bottom:12px;display:flex;gap:8px">
+        <input class="inp" id="ctr-test-search" placeholder="Search test to add rate..." style="flex:1"
+          oninput="filterCenterTests()"/>
+        <button class="btn btn-outline-steel btn-sm" onclick="filterCenterTests()">Search</button>
+      </div>
+      <div id="ctr-test-results" style="max-height:200px;overflow-y:auto;border:1px solid var(--border-subtle);border-radius:8px;margin-bottom:14px">
+        <table style="font-size:12px;width:100%">
+          <thead><tr style="background:#f0f7fc">
+            <th style="padding:6px 10px">Test Name</th>
+            <th style="padding:6px 10px">Code</th>
+            <th style="padding:6px 10px">MRP Rate</th>
+            <th style="padding:6px 10px">Center Rate</th>
+          </tr></thead>
+          <tbody id="ctr-test-tbody">
+            ${testCatalog.slice(0,10).map(t => `<tr>
+              <td style="padding:5px 10px">${t.name}</td>
+              <td style="padding:5px 10px;font-family:monospace">${t.code}</td>
+              <td style="padding:5px 10px">₹${t.rate||0}</td>
+              <td style="padding:5px 10px"><input type="number" class="inp" style="width:80px;padding:3px 6px;font-size:12px"
+                placeholder="${t.rate||0}" id="ctr-rate-${t.id}"/></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-success" onclick="saveCenter(${c?.id||'null'})">💾 Save Center</button>
+      <button class="btn btn-ghost" onclick="navigate('center-list')">Cancel</button>
+    </div>
+  </div>`;
+    }
+
+    function filterCenterTests() {
+      const q = document.getElementById('ctr-test-search')?.value.toLowerCase() || '';
+      const filtered = q ? testCatalog.filter(t => t.name.toLowerCase().includes(q) || t.code.toLowerCase().includes(q)) : testCatalog.slice(0,10);
+      const tbody = document.getElementById('ctr-test-tbody');
+      if (tbody) tbody.innerHTML = filtered.map(t => `<tr>
+        <td style="padding:5px 10px">${t.name}</td>
+        <td style="padding:5px 10px;font-family:monospace">${t.code}</td>
+        <td style="padding:5px 10px">₹${t.rate||0}</td>
+        <td style="padding:5px 10px"><input type="number" class="inp" style="width:80px;padding:3px 6px;font-size:12px"
+          placeholder="${t.rate||0}" id="ctr-rate-${t.id}"/></td>
+      </tr>`).join('');
+    }
+
+    function saveCenter(id) {
+      const code = document.getElementById('ctr-code')?.value.trim().toUpperCase();
+      const name = document.getElementById('ctr-name')?.value.trim();
+      if (!code || !name) { showToast('Code and Name are required!', 'error'); return; }
+      const centerData = {
+        id: id || Date.now(),
+        code, name,
+        mobile:      document.getElementById('ctr-mobile')?.value.trim()||'',
+        email:       document.getElementById('ctr-email')?.value.trim()||'',
+        contactName: document.getElementById('ctr-contact')?.value.trim()||'',
+        rateType:    document.getElementById('ctr-ratetype')?.value||'MRP Rate',
+        address:     document.getElementById('ctr-address')?.value.trim()||'',
+      };
+      if (id) {
+        const idx = centers.findIndex(x => x.id === id);
+        if (idx >= 0) centers[idx] = centerData;
+      } else {
+        centers.push(centerData);
+      }
+      showToast('Center saved!', 'success');
+      navigate('center-list');
+    }
+
+    function renderCenterLedger() {
+      return `
+  ${ph('Center Ledger', 'View billing and payment details per center.')}
+  ${bc('Home', 'Center Account', 'Center Ledger')}
+  <div class="card mb2" style="padding:14px 18px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;align-items:flex-end">
+      <div>
+        <label class="form-label">Center</label>
+        <select class="inp" id="ledger-center">
+          <option value="">All Centers</option>
+          ${centers.map(c => `<option value="${c.code}">${c.name}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label class="form-label">From Date</label>
+        <input class="inp" type="date" id="ledger-from" value="${new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10)}"/>
+      </div>
+      <div>
+        <label class="form-label">To Date</label>
+        <input class="inp" type="date" id="ledger-to" value="${isoToday()}"/>
+      </div>
+      <button class="btn btn-primary" onclick="loadCenterLedger()">Search</button>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px" id="ledger-summary">
+    <div style="background:#dbeafe;border-radius:10px;padding:14px;text-align:center">
+      <div style="font-size:22px;font-weight:800;color:#1d4ed8" id="led-total-reg">0</div>
+      <div style="font-size:11px;font-weight:600;color:#1d4ed8">Total Registrations</div>
+    </div>
+    <div style="background:#dcfce7;border-radius:10px;padding:14px;text-align:center">
+      <div style="font-size:22px;font-weight:800;color:#15803d" id="led-total-charges">₹0</div>
+      <div style="font-size:11px;font-weight:600;color:#15803d">Total Charges</div>
+    </div>
+    <div style="background:#fef3c7;border-radius:10px;padding:14px;text-align:center">
+      <div style="font-size:22px;font-weight:800;color:#b45309" id="led-total-paid">₹0</div>
+      <div style="font-size:11px;font-weight:600;color:#b45309">Total Paid</div>
+    </div>
+    <div style="background:#fee2e2;border-radius:10px;padding:14px;text-align:center">
+      <div style="font-size:22px;font-weight:800;color:#dc2626" id="led-total-balance">₹0</div>
+      <div style="font-size:11px;font-weight:600;color:#dc2626">Total Balance</div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="tbl-wrap">
+      <table style="font-size:12.5px">
+        <thead>
+          <tr style="background:#1a3a5c;color:#fff">
+            <th>#</th><th>Date</th><th>Reg No</th><th>Patient Name</th>
+            <th>Center</th><th>Tests</th><th>Charges</th><th>Paid</th><th>Balance</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="ledger-tbody">
+          <tr><td colspan="10" class="empty-state" style="padding:28px">Click Search to load ledger data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+    }
+
+    async function loadCenterLedger() {
+      const tbody = document.getElementById('ledger-tbody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="empty-state">Loading...</td></tr>';
+      const center = document.getElementById('ledger-center')?.value || '';
+      const from   = document.getElementById('ledger-from')?.value  || new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
+      const to     = document.getElementById('ledger-to')?.value    || new Date().toISOString().slice(0,10);
+      try {
+        const params = new URLSearchParams({ from: from+'T00:00:00', to: to+'T23:59:59', page:0, size:500 });
+        const res  = await apiFetch('http://localhost:8081/api/v1/registrations?'+params);
+        if (!res || !res.ok) throw new Error('Server error');
+        const data = await res.json();
+        let regs   = (data.success && data.data) ? (data.data.content||[]) : [];
+        if (center) regs = regs.filter(r => (r.center||'').toLowerCase() === center.toLowerCase());
+
+        // Update summary
+        const totalReg     = regs.length;
+        const totalCharges = regs.reduce((s,r) => s+(r.totalAmount||0), 0);
+        const totalPaid    = regs.reduce((s,r) => s+(r.paidAmount||0), 0);
+        const totalBal     = regs.reduce((s,r) => s+(r.balanceAmount||0), 0);
+        document.getElementById('led-total-reg')?.setAttribute('innerText', totalReg);
+        document.getElementById('led-total-reg').textContent     = totalReg;
+        document.getElementById('led-total-charges').textContent = '₹'+fmt(totalCharges);
+        document.getElementById('led-total-paid').textContent    = '₹'+fmt(totalPaid);
+        document.getElementById('led-total-balance').textContent = '₹'+fmt(totalBal);
+
+        if (!tbody) return;
+        tbody.innerHTML = regs.length ? regs.map((reg,i) => {
+          const tests = (reg.tests||[]).map(t=>t.name||'').filter(Boolean).join(', ');
+          return '<tr style="background:'+(i%2===0?'#fff':'#f8fafc')+'">' +
+            '<td style="color:#999">'+(i+1)+'</td>' +
+            '<td style="font-size:11px">'+(reg.createdAt||'').replace('T',' ').substring(0,16)+'</td>' +
+            '<td class="col-mono" style="font-weight:700">'+reg.regNo+'</td>' +
+            '<td style="font-weight:600">'+(reg.patient?.name||'')+'</td>' +
+            '<td><span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:4px;font-size:11px">'+(reg.center||'OPD')+'</span></td>' +
+            '<td style="font-size:11px;max-width:150px">'+tests+'</td>' +
+            '<td class="text-right mono">₹'+fmt(reg.totalAmount||0)+'</td>' +
+            '<td class="text-right mono">₹'+fmt(reg.paidAmount||0)+'</td>' +
+            '<td class="text-right mono" style="color:#dc2626;font-weight:700">₹'+fmt(reg.balanceAmount||0)+'</td>' +
+            '<td><span style="background:#15803d;color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">'+reg.status+'</span></td>' +
+          '</tr>';
+        }).join('') :
+        '<tr><td colspan="10" class="empty-state" style="padding:28px">No data found.</td></tr>';
+      } catch(e) {
+        console.error('Ledger error:', e);
+        if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="empty-state">Error: '+e.message+'</td></tr>';
+      }
+    }
+
+        function renderSQLBackup() { return `${ph('Database Backup', 'Create and manage system database backups.')}${bc('Home', 'Master Configuration', 'SQL Backup')}<div class="card" style="max-width:700px"><div style="background:var(--steel-25);border:1px solid var(--steel-150);border-left:3px solid var(--steel-400);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:12.5px;color:var(--text-secondary)">Create daily backups to prevent data loss. Scheduled backups run automatically at midnight.</div><div class="g2 mb3"><div class="card" style="text-align:center;border:1.5px solid var(--border-subtle)"><div style="font-size:36px;margin-bottom:10px">🗄️</div><div style="font-weight:700;margin-bottom:4px">Manual Backup</div><div style="color:var(--text-muted);font-size:12px;margin-bottom:14px">Create a backup now</div><button class="btn btn-primary fw" onclick="doBackup()">Create Backup Now</button></div><div class="card" style="text-align:center;border:1.5px solid var(--border-subtle)"><div style="font-size:36px;margin-bottom:10px">⏰</div><div style="font-weight:700;margin-bottom:4px">Scheduled Backup</div><div style="color:var(--text-muted);font-size:12px;margin-bottom:14px">Auto nightly backup</div><label class="tog-wrap" style="justify-content:center"><label class="tog"><input type="checkbox" checked><span class="tog-sl"></span></label>Daily at 11:59 PM</label></div></div><div class="tbl-wrap"><table><thead><tr><th>Date &amp; Time</th><th>File Size</th><th>Type</th><th>Status</th><th>Action</th></tr></thead><tbody><tr><td class="col-mono">10-03-2026 23:59</td><td class="mono">2.4 MB</td><td>Scheduled</td><td><span class="badge b-printed">Success</span></td><td><button class="btn btn-outline-steel btn-xs">Download</button></td></tr><tr><td class="col-mono">09-03-2026 23:59</td><td class="mono">2.3 MB</td><td>Scheduled</td><td><span class="badge b-printed">Success</span></td><td><button class="btn btn-outline-steel btn-xs">Download</button></td></tr></tbody></table></div></div>`; }
     function doBackup() { showToast('Backup initiated…', 'info'); setTimeout(() => showToast('Backup completed successfully', 'success'), 1800); }
     function renderDepartmentMaster() { return `${ph('Departments', 'Manage laboratory departments.')}${bc('Home', 'Master Configuration', 'Departments')}<div class="card"><div class="flex mb3" style="gap:10px"><input class="inp" id="dept-name" placeholder="New department name…" style="width:280px"/><button class="btn btn-success" onclick="addDept()">+ Add Department</button></div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>Department Name</th><th>Tests Assigned</th><th>Actions</th></tr></thead><tbody>${departments.map((d, i) => `<tr><td style="color:var(--text-faint)">${i + 1}</td><td style="font-weight:700">${d}</td><td>${testCatalog.filter(t => t.dept === d).length} test(s)</td><td><button class="btn btn-danger btn-xs" onclick="removeDept(${i})">Remove</button></td></tr>`).join('')}</tbody></table></div></div>`; }
     function addDept() { const name = document.getElementById('dept-name')?.value.trim(); if (!name) { showToast('Enter a name', 'error'); return; } if (departments.includes(name)) { showToast('Already exists', 'warn'); return; } departments.push(name); document.getElementById('dept-name').value = ''; showToast('Department added'); navigate('department-master'); }
@@ -5406,7 +5955,252 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
       ];
     }
 
-    function renderTestResultEntry() {
+    function renderAddResult() {
+      const data = pageData || {};
+      const regId = data.regId;
+      const regNo = data.regNo || '';
+
+      // Find registration
+      const reg = scData.find(r => r.id === regId) ||
+                  patients.find(p => p.id === regId);
+      const patName  = reg?.patient?.name  || reg?.name  || '';
+      const patAge   = (reg?.patient?.age  || reg?.age   || '') + '/' + (reg?.patient?.ageUnit||reg?.ageUnit||'Year');
+      const patGender= reg?.patient?.gender|| reg?.gender|| '';
+      const mobile   = reg?.patient?.mobile|| reg?.mobile|| '';
+      const center   = reg?.center         || '';
+      const refDoc   = reg?.refDoctor?.name|| reg?.refDoc|| 'SELF';
+      const regDate  = reg?.createdAt ? new Date(reg.createdAt).toLocaleString('en-GB') : new Date().toLocaleString('en-GB');
+      const tests    = reg?.tests || reg?.testObjects || [];
+
+      const testRows = tests.map((t, i) => {
+        const testName = t.name||t.testName||'';
+        const dept     = t.department||t.dept||'—';
+        return `<tr style="background:${i%2===0?'#fff':'#f8fafc'}">
+          <td style="padding:8px 10px;font-size:12px;color:#666">${dept}</td>
+          <td style="padding:8px 10px;font-weight:600;color:#1e40af">${testName}</td>
+          <td style="padding:8px 10px">
+            <input type="text" class="inp" id="result-${i}" placeholder="Enter result"
+              style="width:160px;padding:4px 8px;font-size:12px"/>
+          </td>
+          <td style="padding:8px 10px">
+            <input type="text" class="inp" id="interp-${i}" placeholder="Interpretation"
+              style="width:100px;padding:4px 8px;font-size:12px"/>
+          </td>
+          <td style="padding:8px 10px;text-align:center">
+            <input type="checkbox" id="auth-${i}" style="width:16px;height:16px;accent-color:#5b9bd5"/>
+          </td>
+          <td style="padding:8px 10px">
+            <select class="inp" id="shortform-${i}" style="width:100px;padding:4px 6px;font-size:12px">
+              <option>-ShortForm-</option><option>Normal</option><option>Abnormal</option>
+            </select>
+          </td>
+          <td style="padding:8px 10px">
+            <input type="text" class="inp" id="prevres-${i}" placeholder="Prev. Result"
+              style="width:80px;padding:4px 8px;font-size:12px"/>
+          </td>
+          <td style="padding:8px 10px;font-size:11px;color:#555">${t.referenceRange||''}</td>
+          <td style="padding:8px 10px;font-size:11px;color:#dc2626">${t.panicRange||''}</td>
+          <td style="padding:8px 10px;font-size:11px">${t.unit||''}</td>
+          <td style="padding:8px 10px">
+            <select class="inp" id="doctor-${i}" style="width:110px;padding:4px 6px;font-size:11px">
+              <option>Dr. Bharati M</option>
+              ${refDoctors.map(d=>'<option>'+d.name+'</option>').join('')}
+            </select>
+          </td>
+          <td style="padding:8px 10px">
+            <button class="btn btn-outline-steel btn-xs" style="font-size:11px">Upload File</button>
+          </td>
+          <td style="padding:8px 10px">
+            <textarea class="inp" id="remark-${i}" rows="1"
+              style="width:80px;padding:3px 6px;font-size:11px;resize:none"></textarea>
+          </td>
+        </tr>`;
+      }).join('');
+
+      return `
+  ${ph('Add Result', 'Enter test results for patient.')}
+  ${bc('Home', 'Reporting', 'Test Result Entry', 'Add Result')}
+
+  <!-- Action bar top -->
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <div style="flex:1">
+      <input class="inp" id="ar-regno-search" placeholder="Enter Reg No" value="${regNo}"
+        style="width:200px;margin-right:8px"/>
+      <button class="btn btn-primary btn-sm" onclick="loadResultByRegNo()">Action</button>
+    </div>
+  </div>
+
+  <!-- Patient Info -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;padding:10px 14px;
+              background:#f0f7fc;border:1px solid #b8d0e4;border-radius:8px;margin-bottom:14px;font-size:13px">
+    <div><b>Reg # :</b> <span style="color:#1e40af">${regNo}</span></div>
+    <div><b>Name :</b> ${patName}</div>
+    <div><b>Age :</b> ${patAge}</div>
+    <div><b>Gender :</b> ${patGender}</div>
+    <div><b>Mobile :</b> ${mobile}</div>
+    <div><b>Center :</b> ${center}</div>
+    <div><b>Date :</b> <span style="font-size:11px">${regDate}</span></div>
+    <div><b>Ref Dr :</b> ${refDoc}</div>
+  </div>
+
+  <!-- Action buttons top -->
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <button class="btn btn-primary btn-sm" onclick="autoCalcResults()">Auto Calc</button>
+    <button class="btn btn-success btn-sm" onclick="saveAndCloseResults(${regId})">Save & Close</button>
+    <button class="btn btn-primary btn-sm" onclick="saveResults(${regId})">Save</button>
+    <button class="btn btn-ghost btn-sm" onclick="navigate('test-result-entry')">Back</button>
+    <button class="btn btn-outline-steel btn-sm" onclick="saveAndPrintResults(${regId})">Save and Print</button>
+  </div>
+
+  <!-- Results Table -->
+  <div class="card" style="padding:0;overflow:hidden;margin-bottom:14px">
+    <div style="overflow-x:auto">
+      <table style="font-size:12.5px;min-width:1200px;border-collapse:collapse;width:100%">
+        <thead>
+          <tr style="background:#5b9bd5;color:#fff">
+            <th style="padding:8px 10px;white-space:nowrap">Dept Name</th>
+            <th style="padding:8px 10px;white-space:nowrap">Test Name</th>
+            <th style="padding:8px 10px;white-space:nowrap">Result</th>
+            <th style="padding:8px 10px;white-space:nowrap">Interpretation</th>
+            <th style="padding:8px 10px;white-space:nowrap">Auth</th>
+            <th style="padding:8px 10px;white-space:nowrap">ShortForm</th>
+            <th style="padding:8px 10px;white-space:nowrap">Previous Result</th>
+            <th style="padding:8px 10px;white-space:nowrap">Normal Range</th>
+            <th style="padding:8px 10px;white-space:nowrap">Panic Range</th>
+            <th style="padding:8px 10px;white-space:nowrap">Unit</th>
+            <th style="padding:8px 10px;white-space:nowrap">Doctor</th>
+            <th style="padding:8px 10px;white-space:nowrap">Upload</th>
+            <th style="padding:8px 10px;white-space:nowrap">Remark</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${testRows || '<tr><td colspan="13" class="empty-state" style="padding:28px">No tests found for this registration.</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Action buttons bottom -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn btn-primary btn-sm" onclick="autoCalcResults()">Auto Calc</button>
+    <button class="btn btn-success btn-sm" onclick="saveAndCloseResults(${regId})">Save & Close</button>
+    <button class="btn btn-primary btn-sm" onclick="saveResults(${regId})">Save</button>
+    <button class="btn btn-ghost btn-sm" onclick="navigate('test-result-entry')">Back</button>
+    <button class="btn btn-outline-steel btn-sm" onclick="saveAndPrintResults(${regId})">Save and Print</button>
+  </div>`;
+    }
+
+    function autoCalcResults() {
+      showToast('Auto calculation applied!', 'info');
+    }
+
+    function saveResults(regId) {
+      collectResultValues(regId);
+      showToast('Results saved!', 'success');
+    }
+
+    function saveAndCloseResults(regId) {
+      collectResultValues(regId);
+      showToast('Results saved!', 'success');
+      navigate('test-result-entry');
+    }
+
+    function saveAndPrintResults(regId) {
+      collectResultValues(regId);
+      showToast('Saved and sent to print!', 'success');
+      navigate('test-result-entry');
+    }
+
+    function collectResultValues(regId) {
+      const reg = scData.find(r => r.id === regId) || patients.find(p => p.id === regId);
+      if (!reg) return;
+      const tests = reg.tests || reg.testObjects || [];
+      tests.forEach((t, i) => {
+        const result = document.getElementById('result-'+i)?.value || '';
+        const remark = document.getElementById('remark-'+i)?.value || '';
+        if (result) t.resultValue = result;
+        if (remark) t.remark = remark;
+      });
+    }
+
+    function loadResultByRegNo() {
+      const regNo = document.getElementById('ar-regno-search')?.value;
+      if (!regNo) return;
+      const reg = scData.find(r => r.regNo === regNo) || patients.find(p => p.regNo === regNo);
+      if (reg) navigate('add-result', { regId: reg.id, regNo });
+      else showToast('Registration not found!', 'error');
+    }
+
+        let treApiData = [];
+
+    async function loadTREData() {
+      try {
+        const from  = document.getElementById('tre-datefrom')?.value || new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
+        const to    = document.getElementById('tre-dateto')?.value   || new Date().toISOString().slice(0,10);
+        const name  = document.getElementById('tre-name')?.value     || '';
+        const regno = document.getElementById('tre-regno')?.value    || '';
+        const params = new URLSearchParams({ from: from+'T00:00:00', to: to+'T23:59:59', page:0, size:500 });
+        if (name)  params.append('patientName', name);
+        if (regno) params.append('regNo', regno);
+        const res  = await apiFetch('http://localhost:8081/api/v1/registrations?'+params);
+        if (!res || !res.ok) throw new Error('Server error');
+        const data = await res.json();
+        treApiData = (data.success && data.data) ? (data.data.content||[]) : [];
+
+        // Build rows from API data
+        const rows = [];
+        treApiData.forEach(reg => {
+          const tests = reg.tests || [];
+          if (!tests.length) {
+            rows.push({
+              isFirstRow: true, rowSpan: 1,
+              seqNo: reg.regNo, date: (reg.createdAt||'').replace('T',' ').substring(0,16),
+              regNo: reg.regNo, ppid: String(reg.patient?.id||reg.id),
+              center: reg.center||'OPD',
+              fullName: reg.patient?.name||'',
+              gender: reg.patient?.gender||'',
+              age: (reg.patient?.age||'')+' '+(reg.patient?.ageUnit||'Year'),
+              refDoc: reg.refDoctor?.name||'—',
+              testCode: '', testName: 'No tests',
+              status: reg.status||'REGISTERED', panic: false,
+              regId: reg.id
+            });
+            return;
+          }
+          tests.forEach((t, ti) => {
+            rows.push({
+              isFirstRow: ti === 0, rowSpan: tests.length,
+              seqNo: reg.regNo,
+              date: ti===0 ? (reg.createdAt||'').replace('T',' ').substring(0,16) : '',
+              regNo: ti===0 ? reg.regNo : '',
+              ppid: ti===0 ? String(reg.patient?.id||reg.id) : '',
+              center: ti===0 ? (reg.center||'OPD') : '',
+              fullName: ti===0 ? (reg.patient?.name||'') : '',
+              gender: ti===0 ? (reg.patient?.gender||'') : '',
+              age: ti===0 ? ((reg.patient?.age||'')+' '+(reg.patient?.ageUnit||'Year')) : '',
+              refDoc: ti===0 ? (reg.refDoctor?.name||'—') : '',
+              testCode: t.code||'',
+              testName: t.name||'',
+              status: reg.status||'REGISTERED',
+              panic: false,
+              regId: reg.id
+            });
+          });
+        });
+
+        const tbody = document.getElementById('tre-tbody');
+        if (tbody) tbody.innerHTML = renderTRERows(rows);
+        const ct = document.getElementById('tre-count');
+        if (ct) ct.textContent = treApiData.length;
+
+      } catch(e) {
+        console.error('TRE load error:', e);
+      }
+    }
+
+        function renderTestResultEntry() {
+      setTimeout(() => loadTREData(), 100);
+      const monthAgo = new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
       const rows = getTRERows();
       const totalCount = [...new Set(rows.filter(r => r.isFirstRow && r.seqNo).map(r => r.seqNo))].length;
       return `
@@ -5414,8 +6208,8 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
     ${bc('Home', 'Reporting', 'Test Result Entry')}
     <div class="card" style="margin-bottom:14px;padding:14px 18px">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px">
-        <div style="display:flex;align-items:center;gap:6px"><span style="font-size:16px">📅</span><input class="inp" id="tre-datefrom" type="date" value="${new Date().toISOString().slice(0, 10)}" style="flex:1"/></div>
-        <div style="display:flex;align-items:center;gap:6px"><span style="font-size:16px">📅</span><input class="inp" id="tre-dateto" type="date" value="${new Date().toISOString().slice(0, 10)}" style="flex:1"/></div>
+        <div style="display:flex;align-items:center;gap:6px"><span style="font-size:16px">📅</span><input class="inp" id="tre-datefrom" type="date" value="${new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10)}" style="flex:1"/></div>
+        <div style="display:flex;align-items:center;gap:6px"><span style="font-size:16px">📅</span><input class="inp" id="tre-dateto" type="date" value="${new Date().toISOString().slice(0,10)}" style="flex:1"/></div>
         <input class="inp" id="tre-ppid"  placeholder="Select PPID No"/>
         <input class="inp" id="tre-regno" placeholder="Enter Registration Number"/>
       </div>
@@ -5429,7 +6223,7 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
         <input class="inp" id="tre-remark"  placeholder="Remark"/>
         <input class="inp" id="tre-barcode" placeholder="Enter Barcode No"/>
         <div style="font-weight:700;font-size:13px">Total Patient Count is: <span id="tre-count" style="color:var(--steel-600)">${totalCount}</span></div>
-        <button class="btn btn-primary" style="min-width:72px" onclick="applyTREFilters()">Click</button>
+        <button class="btn btn-primary" style="min-width:72px" onclick="loadTREData()">Click</button>
       </div>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-bottom:14px;padding:10px 16px;background:#fff;border:1px solid var(--border-subtle);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)">
@@ -5506,7 +6300,7 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
         <td rowspan="${r.rowSpan}">${r.gender}</td>
         <td rowspan="${r.rowSpan}" style="white-space:nowrap">${r.age}</td>
         <td rowspan="${r.rowSpan}" style="font-size:11px">${r.refDoc}</td>` : ''}
-      <td style="color:#1d6fb8;font-weight:600;cursor:pointer" onclick="openResultEntryModal('${r.seqNo}','${r.testCode}','${r.testName.replace(/'/g, "\\'")}')">
+      <td style="color:#1d6fb8;font-weight:600;cursor:pointer" onclick="treSubmit('${r.seqNo}')">
         ${r.testName}
       </td>
       <td><button class="tre-reg" style="background:${sc}" onclick="treRegClick('${r.seqNo}','${r.testCode}')">Reg</button></td>
@@ -5624,7 +6418,12 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
       closeModal(); applyTREFilters();
     }
     function treSaveAndPrint(sN, tC, pC) { treSaveResult(sN, tC, pC); showToast('Sent to print queue', 'info'); }
-    function treSubmit(seqNo) { if (!confirm(`Submit all results for Seq No: ${seqNo}?`)) return; showToast(`Seq ${seqNo} submitted successfully`, 'success'); }
+    function treSubmit(seqNo) {
+      let reg = treApiData.find(r => r.regNo === seqNo);
+      if (!reg) reg = scData.find(r => r.regNo === seqNo);
+      if (!reg) reg = patients.find(p => p.regNo === seqNo);
+      navigate('add-result', { regId: reg?.id||null, regNo: seqNo, reg: reg });
+    }
     function treRegClick(sN, tC) { showToast(`Registration: ${sN} / ${tC}`, 'info'); }
     function trePrintCard(sN, tC) { showToast(`Printing card for ${tC}…`, 'info'); }
     function trePrintReport(sN, tC) { showToast(`Generating report for ${tC}…`, 'info'); }

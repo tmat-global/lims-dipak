@@ -165,3 +165,25 @@ CREATE TABLE audit_logs (
     ip_address VARCHAR(50),
     created_at TIMESTAMP
 );
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='centers' AND xtype='U')
+CREATE TABLE centers (
+    id           BIGINT IDENTITY(1,1) PRIMARY KEY,
+    code         NVARCHAR(20)  NOT NULL UNIQUE,
+    name         NVARCHAR(100) NOT NULL,
+    mobile       NVARCHAR(20),
+    email        NVARCHAR(100),
+    contact_name NVARCHAR(100),
+    rate_type    NVARCHAR(50)  DEFAULT 'MRP Rate',
+    address      NVARCHAR(255),
+    is_active    BIT           DEFAULT 1,
+    created_at   DATETIME2     DEFAULT GETDATE(),
+    updated_at   DATETIME2     DEFAULT GETDATE()
+);
+
+-- Insert default centers
+IF NOT EXISTS (SELECT * FROM centers WHERE code = 'OPD')
+    INSERT INTO centers (code, name, rate_type) VALUES ('OPD', 'OPD', 'MRP Rate');
+IF NOT EXISTS (SELECT * FROM centers WHERE code = 'IPD')
+    INSERT INTO centers (code, name, rate_type) VALUES ('IPD', 'IPD', 'MRP Rate');
+IF NOT EXISTS (SELECT * FROM centers WHERE code = 'CORP')
+    INSERT INTO centers (code, name, rate_type) VALUES ('CORP', 'Corporate', 'MRP Rate');
