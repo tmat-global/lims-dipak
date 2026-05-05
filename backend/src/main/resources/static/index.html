@@ -9,1693 +9,13 @@
     href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap"
     rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0
-    }
-
-    :root {
-      --steel-950: #0a1929;
-      --steel-900: #0d2137;
-      --steel-800: #122d4a;
-      --steel-750: #163557;
-      --steel-700: #1a3d64;
-      --steel-600: #204e7f;
-      --steel-500: #2d6499;
-      --steel-400: #4682b4;
-      --steel-350: #5a9bc4;
-      --steel-300: #72add1;
-      --steel-200: #a8cde6;
-      --steel-150: #c4dff0;
-      --steel-100: #daeaf7;
-      --steel-50: #f0f7fc;
-      --steel-25: #f7fbfe;
-      --green-600: #15803d;
-      --green-100: #dcfce7;
-      --green-200: #bbf7d0;
-      --red-600: #dc2626;
-      --red-100: #fee2e2;
-      --amber-600: #b45309;
-      --amber-100: #fef3c7;
-      --purple-600: #7c3aed;
-      --purple-100: #ede9fe;
-      --teal-600: #0f766e;
-      --teal-100: #ccfbf1;
-      --sidebar-w: 248px;
-      --topbar-h: 56px;
-      --radius: 8px;
-      --radius-lg: 12px;
-      --shadow-sm: 0 1px 3px rgba(10, 25, 41, .08), 0 1px 2px rgba(10, 25, 41, .06);
-      --shadow: 0 4px 12px rgba(10, 25, 41, .10), 0 2px 4px rgba(10, 25, 41, .06);
-      --shadow-lg: 0 10px 30px rgba(10, 25, 41, .14), 0 4px 8px rgba(10, 25, 41, .08);
-      --shadow-xl: 0 24px 48px rgba(10, 25, 41, .20), 0 8px 16px rgba(10, 25, 41, .10);
-      --text-primary: #0a1929;
-      --text-secondary: #2d4a6b;
-      --text-muted: #5a7a9a;
-      --text-faint: #8aabc4;
-      --text-on-dark: #e8f3fa;
-      --bg-app: #f0f5f9;
-      --bg-card: #ffffff;
-      --border-subtle: #dce8f0;
-      --border-medium: #b8d0e4;
-    }
-
-    ::-webkit-scrollbar {
-      width: 5px;
-      height: 5px
-    }
-
-    ::-webkit-scrollbar-track {
-      background: transparent
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: var(--steel-200);
-      border-radius: 4px
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background: var(--steel-300)
-    }
-
-    body {
-      font-family: 'DM Sans', sans-serif;
-      background: var(--bg-app);
-      color: var(--text-primary);
-      font-size: 13px;
-      line-height: 1.5;
-      font-weight: 400;
-      -webkit-font-smoothing: antialiased
-    }
-
-    #app {
-      display: flex;
-      height: 100vh;
-      overflow: hidden
-    }
-
-    #main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      min-width: 0
-    }
-
-    #content {
-      flex: 1;
-      overflow-y: auto;
-      padding: 28px 30px;
-      background: var(--bg-app)
-    }
-
-    #footer {
-      background: #fff;
-      border-top: 1px solid var(--border-subtle);
-      padding: 9px 24px;
-      font-size: 11px;
-      color: var(--text-faint);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      letter-spacing: .3px;
-      flex-shrink: 0
-    }
-
-    #sidebar {
-      width: var(--sidebar-w);
-      min-width: var(--sidebar-w);
-      background: var(--steel-900);
-      display: flex;
-      flex-direction: column;
-      transition: width .25s;
-      overflow: hidden;
-      position: relative;
-      flex-shrink: 0
-    }
-
-    #sidebar::after {
-      content: '';
-      position: absolute;
-      right: 0;
-      top: 0;
-      bottom: 0;
-      width: 1px;
-      background: linear-gradient(to bottom, transparent, rgba(70, 130, 180, .3) 20%, rgba(70, 130, 180, .3) 80%, transparent)
-    }
-
-    #sidebar.collapsed {
-      width: 60px;
-      min-width: 60px
-    }
-
-    .sb-brand {
-      padding: 18px 16px 16px;
-      border-bottom: 1px solid rgba(255, 255, 255, .06);
-      display: flex;
-      align-items: center;
-      gap: 11px;
-      background: var(--steel-950);
-      min-height: 72px
-    }
-
-    .sb-logo-wrap {
-      width: 36px;
-      height: 36px;
-      border-radius: 9px;
-      background: linear-gradient(135deg, var(--steel-400), var(--steel-300));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      box-shadow: 0 2px 8px rgba(70, 130, 180, .4)
-    }
-
-    .sb-title {
-      white-space: nowrap;
-      overflow: hidden
-    }
-
-    .sb-title-main {
-      color: var(--text-on-dark);
-      font-weight: 700;
-      font-size: 13.5px;
-      letter-spacing: .1px;
-      font-family: 'Playfair Display', serif
-    }
-
-    .sb-title-sub {
-      color: var(--steel-300);
-      font-size: 10.5px;
-      font-weight: 400;
-      letter-spacing: .3px;
-      margin-top: 1px
-    }
-
-    .sb-user {
-      padding: 12px 16px;
-      border-bottom: 1px solid rgba(255, 255, 255, .05);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: rgba(255, 255, 255, .03)
-    }
-
-    .sb-avatar {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--steel-400), var(--steel-600));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      font-weight: 700;
-      font-size: 13px;
-      flex-shrink: 0;
-      border: 2px solid rgba(70, 130, 180, .4)
-    }
-
-    .sb-uinfo {
-      white-space: nowrap;
-      overflow: hidden
-    }
-
-    .sb-uname {
-      color: #e8f3fa;
-      font-weight: 600;
-      font-size: 12.5px;
-      line-height: 1.25
-    }
-
-    .sb-urole {
-      color: var(--steel-300);
-      font-size: 10.5px;
-      margin-top: 1px
-    }
-
-    nav {
-      flex: 1;
-      overflow-y: auto;
-      padding: 10px 0 6px
-    }
-
-    .nav-section {
-      padding: 10px 16px 5px;
-      font-size: 9.5px;
-      font-weight: 700;
-      color: var(--steel-400);
-      letter-spacing: 1.8px;
-      text-transform: uppercase;
-      opacity: .7
-    }
-
-    .nav-item {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      padding: 8px 16px;
-      cursor: pointer;
-      color: var(--steel-200);
-      transition: all .14s;
-      white-space: nowrap;
-      user-select: none;
-      position: relative;
-      font-size: 12.5px;
-      font-weight: 500
-    }
-
-    .nav-item::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 20%;
-      bottom: 20%;
-      width: 2.5px;
-      border-radius: 0 3px 3px 0;
-      background: var(--steel-400);
-      opacity: 0;
-      transition: opacity .14s
-    }
-
-    .nav-item:hover {
-      background: rgba(70, 130, 180, .12);
-      color: #fff
-    }
-
-    .nav-item:hover::before {
-      opacity: .5
-    }
-
-    .nav-item.active {
-      background: rgba(70, 130, 180, .18);
-      color: #fff
-    }
-
-    .nav-item.active::before {
-      opacity: 1
-    }
-
-    .nav-icon-wrap {
-      width: 28px;
-      height: 28px;
-      border-radius: 7px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      font-size: 14px;
-      transition: background .14s
-    }
-
-    .nav-item:hover .nav-icon-wrap,
-    .nav-item.active .nav-icon-wrap {
-      background: rgba(70, 130, 180, .25)
-    }
-
-    .nav-label {
-      flex: 1;
-      font-size: 12.5px;
-      font-weight: 500;
-      letter-spacing: .1px
-    }
-
-    .nav-arrow {
-      font-size: 8px;
-      transition: transform .2s;
-      opacity: .5;
-      margin-right: 2px
-    }
-
-    .nav-arrow.open {
-      transform: rotate(90deg)
-    }
-
-    .sub-menu {
-      display: none;
-      background: rgba(0, 0, 0, .1)
-    }
-
-    .sub-menu.open {
-      display: block
-    }
-
-    .sub-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6.5px 14px 6.5px 38px;
-      cursor: pointer;
-      color: rgba(164, 196, 218, .8);
-      transition: all .12s;
-      font-size: 12px;
-      font-weight: 400;
-      margin: 1px 8px;
-      border-radius: 6px
-    }
-
-    .sub-item:hover {
-      background: rgba(70, 130, 180, .12);
-      color: #fff
-    }
-
-    .sub-item.active {
-      color: #fff;
-      background: rgba(70, 130, 180, .15)
-    }
-
-    .sub-dot {
-      width: 4px;
-      height: 4px;
-      border-radius: 50%;
-      background: var(--steel-400);
-      flex-shrink: 0;
-      opacity: .5;
-      transition: opacity .14s
-    }
-
-    .sub-item:hover .sub-dot,
-    .sub-item.active .sub-dot {
-      opacity: 1
-    }
-
-    .sb-logout {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 16px;
-      cursor: pointer;
-      color: var(--steel-200);
-      border-top: 1px solid rgba(255, 255, 255, .06);
-      transition: all .14s;
-      font-size: 12.5px;
-      font-weight: 500
-    }
-
-    .sb-logout:hover {
-      color: #fca5a5;
-      background: rgba(220, 38, 38, .08)
-    }
-
-    .sb-accent-bar {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: linear-gradient(to right, var(--steel-400), var(--steel-300), var(--steel-200));
-      opacity: .5
-    }
-
-    #topbar {
-      height: var(--topbar-h);
-      background: #fff;
-      border-bottom: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 24px;
-      box-shadow: var(--shadow-sm);
-      flex-shrink: 0;
-      z-index: 10
-    }
-
-    .tb-left {
-      display: flex;
-      align-items: center;
-      gap: 12px
-    }
-
-    .tb-ham {
-      background: transparent;
-      border: 1px solid var(--border-subtle);
-      color: var(--text-muted);
-      cursor: pointer;
-      padding: 6px 8px;
-      border-radius: 7px;
-      display: flex;
-      transition: all .14s
-    }
-
-    .tb-ham:hover {
-      background: var(--steel-50);
-      border-color: var(--steel-200);
-      color: var(--steel-600)
-    }
-
-    .tb-breadcrumb {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 13px;
-      color: var(--text-muted)
-    }
-
-    .tb-breadcrumb .sep {
-      color: var(--border-medium)
-    }
-
-    .tb-breadcrumb .current {
-      color: var(--text-primary);
-      font-weight: 600
-    }
-
-    .tb-center {
-      display: flex;
-      align-items: center;
-      gap: 10px
-    }
-
-    .tb-org-badge {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 14px;
-      background: var(--steel-50);
-      border: 1px solid var(--steel-150);
-      border-radius: 8px
-    }
-
-    .tb-org-name {
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--steel-700);
-      letter-spacing: .3px;
-      font-family: 'Playfair Display', serif
-    }
-
-    .tb-org-sub {
-      font-size: 10px;
-      color: var(--text-muted);
-      letter-spacing: .2px
-    }
-
-    .tb-right {
-      display: flex;
-      align-items: center;
-      gap: 6px
-    }
-
-    .tb-icon-btn {
-      width: 34px;
-      height: 34px;
-      border-radius: 8px;
-      border: 1px solid var(--border-subtle);
-      background: #fff;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-muted);
-      font-size: 15px;
-      transition: all .14s
-    }
-
-    .tb-icon-btn:hover {
-      background: var(--steel-50);
-      border-color: var(--steel-200);
-      color: var(--steel-600)
-    }
-
-    .status-pill {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      padding: 5px 11px;
-      border-radius: 20px;
-      font-size: 10.5px;
-      font-weight: 600;
-      letter-spacing: .2px
-    }
-
-    .status-pill.online {
-      background: var(--green-100);
-      color: var(--green-600);
-      border: 1px solid var(--green-200)
-    }
-
-    .status-pill.offline {
-      background: var(--red-100);
-      color: var(--red-600);
-      border: 1px solid #fecaca
-    }
-
-    .status-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%
-    }
-
-    .status-dot.online-dot {
-      background: var(--green-600);
-      box-shadow: 0 0 0 2px var(--green-200)
-    }
-
-    .status-dot.offline-dot {
-      background: var(--red-600)
-    }
-
-    .page-header {
-      margin-bottom: 22px
-    }
-
-    .page-title {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--text-primary);
-      letter-spacing: -.3px;
-      font-family: 'Playfair Display', serif;
-      line-height: 1.2
-    }
-
-    .page-subtitle {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 3px;
-      font-weight: 400
-    }
-
-    .breadcrumb {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 11.5px;
-      color: var(--text-faint);
-      margin-bottom: 12px
-    }
-
-    .breadcrumb .crumb {
-      color: var(--text-muted);
-      font-weight: 500
-    }
-
-    .breadcrumb .active-crumb {
-      color: var(--steel-500);
-      font-weight: 600
-    }
-
-    .breadcrumb .sep {
-      color: var(--border-medium);
-      font-size: 10px
-    }
-
-    .card {
-      background: var(--bg-card);
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--border-subtle);
-      box-shadow: var(--shadow-sm);
-      padding: 22px 24px
-    }
-
-    .card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 18px;
-      padding-bottom: 14px;
-      border-bottom: 1px solid var(--border-subtle)
-    }
-
-    .card-title {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--text-primary);
-      letter-spacing: -.1px
-    }
-
-    .card-subtitle {
-      font-size: 11.5px;
-      color: var(--text-muted);
-      margin-top: 2px
-    }
-
-    .stat-card {
-      background: #fff;
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--border-subtle);
-      box-shadow: var(--shadow-sm);
-      padding: 18px 20px;
-      display: flex;
-      align-items: flex-start;
-      gap: 14px;
-      transition: box-shadow .2s, transform .2s;
-      cursor: default;
-      position: relative;
-      overflow: hidden
-    }
-
-    .stat-card:hover {
-      box-shadow: var(--shadow);
-      transform: translateY(-1px)
-    }
-
-    .stat-icon {
-      width: 44px;
-      height: 44px;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      flex-shrink: 0
-    }
-
-    .stat-body {
-      flex: 1;
-      min-width: 0
-    }
-
-    .stat-val {
-      font-size: 24px;
-      font-weight: 700;
-      line-height: 1;
-      letter-spacing: -.5px;
-      margin-bottom: 4px
-    }
-
-    .stat-lbl {
-      font-size: 11px;
-      color: var(--text-muted);
-      font-weight: 500;
-      letter-spacing: .2px;
-      text-transform: uppercase
-    }
-
-    .stat-delta {
-      font-size: 10px;
-      font-weight: 600;
-      margin-top: 5px;
-      display: flex;
-      align-items: center;
-      gap: 3px
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 8px 16px;
-      border-radius: 7px;
-      font-size: 12.5px;
-      font-weight: 600;
-      cursor: pointer;
-      border: none;
-      outline: none;
-      transition: all .15s;
-      white-space: nowrap;
-      font-family: 'DM Sans', sans-serif;
-      letter-spacing: .1px;
-      line-height: 1
-    }
-
-    .btn:active {
-      transform: translateY(0) !important
-    }
-
-    .btn-primary {
-      background: var(--steel-500);
-      color: #fff;
-      box-shadow: 0 2px 6px rgba(45, 100, 153, .35)
-    }
-
-    .btn-primary:hover {
-      background: var(--steel-600);
-      box-shadow: 0 4px 10px rgba(45, 100, 153, .4);
-      transform: translateY(-1px)
-    }
-
-    .btn-steel-dark {
-      background: var(--steel-800);
-      color: #fff;
-      box-shadow: 0 2px 6px rgba(18, 45, 74, .4)
-    }
-
-    .btn-steel-dark:hover {
-      background: var(--steel-900);
-      transform: translateY(-1px)
-    }
-
-    .btn-success {
-      background: #15803d;
-      color: #fff;
-      box-shadow: 0 2px 6px rgba(21, 128, 61, .3)
-    }
-
-    .btn-success:hover {
-      background: #166534;
-      transform: translateY(-1px)
-    }
-
-    .btn-danger {
-      background: #dc2626;
-      color: #fff;
-      box-shadow: 0 2px 6px rgba(220, 38, 38, .3)
-    }
-
-    .btn-danger:hover {
-      background: #b91c1c;
-      transform: translateY(-1px)
-    }
-
-    .btn-warning {
-      background: #d97706;
-      color: #fff
-    }
-
-    .btn-warning:hover {
-      background: #b45309;
-      transform: translateY(-1px)
-    }
-
-    .btn-ghost {
-      background: transparent;
-      color: var(--text-secondary);
-      border: 1px solid var(--border-medium)
-    }
-
-    .btn-ghost:hover {
-      background: var(--steel-50);
-      border-color: var(--steel-300);
-      color: var(--steel-600)
-    }
-
-    .btn-outline-steel {
-      background: #fff;
-      color: var(--steel-600);
-      border: 1px solid var(--steel-200)
-    }
-
-    .btn-outline-steel:hover {
-      background: var(--steel-50);
-      border-color: var(--steel-400)
-    }
-
-    .btn-sm {
-      padding: 5px 11px;
-      font-size: 11.5px
-    }
-
-    .btn-xs {
-      padding: 3px 8px;
-      font-size: 11px
-    }
-
-    .btn-icon {
-      padding: 7px;
-      border-radius: 7px
-    }
-
-    .inp {
-      width: 100%;
-      padding: 8px 12px;
-      border: 1.5px solid var(--border-subtle);
-      border-radius: 7px;
-      font-size: 12.5px;
-      font-family: 'DM Sans', sans-serif;
-      color: var(--text-primary);
-      background: #fff;
-      outline: none;
-      transition: border-color .14s, box-shadow .14s;
-      font-weight: 400
-    }
-
-    .inp:focus {
-      border-color: var(--steel-400);
-      box-shadow: 0 0 0 3px rgba(70, 130, 180, .15)
-    }
-
-    .inp::placeholder {
-      color: var(--text-faint)
-    }
-
-    select.inp {
-      cursor: pointer;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a7a9a'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 10px center;
-      padding-right: 28px;
-      appearance: none
-    }
-
-    textarea.inp {
-      resize: vertical;
-      min-height: 72px
-    }
-
-    .inp-readonly {
-      background: var(--steel-25);
-      color: var(--text-muted);
-      cursor: default
-    }
-
-    .inp-sm {
-      padding: 5px 9px;
-      font-size: 11.5px
-    }
-
-    .inp-error {
-      border-color: #dc2626
-    }
-
-    .inp-error:focus {
-      box-shadow: 0 0 0 3px rgba(220, 38, 38, .15)
-    }
-
-    .form-label {
-      display: block;
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--steel-700);
-      margin-bottom: 5px;
-      letter-spacing: .5px;
-      text-transform: uppercase
-    }
-
-    .form-group {
-      margin-bottom: 14px
-    }
-
-    .tbl-wrap {
-      overflow-x: auto;
-      border-radius: 10px;
-      border: 1px solid var(--border-subtle);
-      box-shadow: var(--shadow-sm)
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12.5px
-    }
-
-    thead tr {
-      background: var(--steel-900)
-    }
-
-    thead th {
-      padding: 11px 14px;
-      text-align: left;
-      font-weight: 600;
-      font-size: 11px;
-      color: var(--steel-150);
-      white-space: nowrap;
-      letter-spacing: .4px;
-      text-transform: uppercase
-    }
-
-    tbody tr {
-      border-bottom: 1px solid var(--border-subtle)
-    }
-
-    tbody tr:last-child {
-      border-bottom: none
-    }
-
-    tbody tr:nth-child(even) {
-      background: #fafcfe
-    }
-
-    tbody tr:nth-child(odd) {
-      background: #fff
-    }
-
-    tbody tr:hover {
-      background: var(--steel-25);
-      transition: background .1s
-    }
-
-    tbody td {
-      padding: 9px 14px;
-      color: var(--text-secondary);
-      vertical-align: middle;
-      font-weight: 400
-    }
-
-    .col-mono {
-      font-family: 'DM Mono', monospace;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--steel-700)
-    }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 3px 9px;
-      border-radius: 20px;
-      font-size: 10.5px;
-      font-weight: 700;
-      white-space: nowrap;
-      letter-spacing: .2px;
-      font-family: 'DM Sans', sans-serif
-    }
-
-    .b-reg {
-      background: #fee2e2;
-      color: #991b1b;
-      border: 1px solid #fecaca
-    }
-
-    .b-samacc {
-      background: #dbeafe;
-      color: #1d4ed8;
-      border: 1px solid #bfdbfe
-    }
-
-    .b-tested {
-      background: #fef3c7;
-      color: #92400e;
-      border: 1px solid #fde68a
-    }
-
-    .b-printed {
-      background: var(--green-100);
-      color: #15803d;
-      border: 1px solid var(--green-200)
-    }
-
-    .b-dispatch {
-      background: #ede9fe;
-      color: #5b21b6;
-      border: 1px solid #c4b5fd
-    }
-
-    .b-pending {
-      background: #fff7ed;
-      color: #9a3412;
-      border: 1px solid #fed7aa
-    }
-
-    .b-active {
-      background: var(--green-100);
-      color: #15803d;
-      border: 1px solid var(--green-200)
-    }
-
-    .b-inactive {
-      background: #fee2e2;
-      color: #991b1b;
-      border: 1px solid #fecaca
-    }
-
-    .tog-wrap {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      cursor: pointer;
-      font-size: 12.5px;
-      font-weight: 500;
-      color: var(--text-secondary)
-    }
-
-    .tog {
-      position: relative;
-      width: 34px;
-      height: 18px;
-      cursor: pointer;
-      flex-shrink: 0
-    }
-
-    .tog input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-      position: absolute
-    }
-
-    .tog-sl {
-      position: absolute;
-      inset: 0;
-      border-radius: 18px;
-      background: var(--border-medium);
-      transition: background .2s
-    }
-
-    .tog-sl::before {
-      content: '';
-      position: absolute;
-      width: 12px;
-      height: 12px;
-      left: 3px;
-      top: 3px;
-      background: #fff;
-      border-radius: 50%;
-      transition: transform .2s;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, .2)
-    }
-
-    .tog input:checked+.tog-sl {
-      background: var(--steel-500)
-    }
-
-    .tog input:checked+.tog-sl::before {
-      transform: translateX(16px)
-    }
-
-    .g2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px
-    }
-
-    .g3 {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 14px
-    }
-
-    .g4 {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr 1fr;
-      gap: 14px
-    }
-
-    .g5 {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 14px
-    }
-
-    .flex {
-      display: flex;
-      align-items: center;
-      gap: 8px
-    }
-
-    .flex-wrap {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center
-    }
-
-    .flex-between {
-      display: flex;
-      align-items: center;
-      justify-content: space-between
-    }
-
-    .mb1 {
-      margin-bottom: 8px
-    }
-
-    .mb2 {
-      margin-bottom: 14px
-    }
-
-    .mb3 {
-      margin-bottom: 20px
-    }
-
-    .search-wrap {
-      position: relative
-    }
-
-    .search-drop {
-      position: absolute;
-      top: calc(100% + 4px);
-      left: 0;
-      right: 0;
-      background: #fff;
-      border: 1.5px solid var(--steel-300);
-      border-radius: 9px;
-      box-shadow: var(--shadow-lg);
-      z-index: 200;
-      max-height: 220px;
-      overflow-y: auto
-    }
-
-    .search-drop-item {
-      padding: 9px 14px;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 12.5px;
-      border-bottom: 1px solid var(--border-subtle);
-      transition: background .1s
-    }
-
-    .search-drop-item:hover {
-      background: var(--steel-50)
-    }
-
-    .search-drop-item:last-child {
-      border-bottom: none
-    }
-
-    .radio-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 14px;
-      align-items: center
-    }
-
-    .radio-opt {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      cursor: pointer;
-      font-size: 12.5px;
-      font-weight: 500;
-      color: var(--text-secondary)
-    }
-
-    .radio-opt input {
-      accent-color: var(--steel-500);
-      cursor: pointer;
-      width: 14px;
-      height: 14px
-    }
-
-    .pagination {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      margin-top: 16px;
-      flex-wrap: wrap
-    }
-
-    .pg-btn {
-      padding: 5px 11px;
-      border: 1px solid var(--border-subtle);
-      border-radius: 6px;
-      background: #fff;
-      cursor: pointer;
-      font-size: 11.5px;
-      font-family: 'DM Sans', sans-serif;
-      color: var(--text-muted);
-      transition: all .14s;
-      font-weight: 600
-    }
-
-    .pg-btn:hover {
-      background: var(--steel-50);
-      border-color: var(--steel-300);
-      color: var(--steel-600)
-    }
-
-    .pg-btn.active {
-      background: var(--steel-500);
-      border-color: var(--steel-500);
-      color: #fff
-    }
-
-    .pg-btn:disabled {
-      opacity: .4;
-      cursor: not-allowed
-    }
-
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(10, 25, 41, .6);
-      backdrop-filter: blur(4px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      padding: 20px
-    }
-
-    .modal-box {
-      background: #fff;
-      border-radius: 14px;
-      box-shadow: var(--shadow-xl);
-      width: 100%;
-      max-height: 92vh;
-      display: flex;
-      flex-direction: column;
-      border: 1px solid var(--border-subtle)
-    }
-
-    .modal-sm {
-      max-width: 440px
-    }
-
-    .modal-md {
-      max-width: 620px
-    }
-
-    .modal-lg {
-      max-width: 860px
-    }
-
-    .modal-xl {
-      max-width: 1060px
-    }
-
-    .modal-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 20px;
-      background: var(--steel-900);
-      border-radius: 13px 13px 0 0;
-      border-bottom: 1px solid rgba(255, 255, 255, .06)
-    }
-
-    .modal-title {
-      color: #fff;
-      font-weight: 700;
-      font-size: 14.5px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-family: 'Playfair Display', serif
-    }
-
-    .modal-close {
-      background: rgba(255, 255, 255, .12);
-      border: none;
-      color: rgba(255, 255, 255, .7);
-      font-size: 16px;
-      cursor: pointer;
-      padding: 4px 10px;
-      border-radius: 6px;
-      transition: all .14s;
-      line-height: 1;
-      font-weight: 600
-    }
-
-    .modal-close:hover {
-      background: rgba(255, 255, 255, .22);
-      color: #fff
-    }
-
-    .modal-body {
-      padding: 22px;
-      overflow-y: auto;
-      flex: 1
-    }
-
-    .bill-box {
-      background: var(--steel-25);
-      border: 1px solid var(--border-subtle);
-      border-radius: 10px;
-      padding: 16px
-    }
-
-    .bill-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 8px 0;
-      border-bottom: 1px solid var(--border-subtle)
-    }
-
-    .bill-row:last-child {
-      border-bottom: none
-    }
-
-    .bill-label {
-      font-size: 12px;
-      color: var(--text-muted);
-      font-weight: 500
-    }
-
-    .bill-val {
-      font-size: 17px;
-      font-weight: 700;
-      color: var(--text-primary);
-      font-family: 'DM Mono', monospace
-    }
-
-    .range-inp {
-      width: 72px;
-      padding: 4px 6px;
-      border: 1px solid var(--border-medium);
-      border-radius: 5px;
-      font-size: 11.5px;
-      text-align: center;
-      font-family: 'DM Sans', sans-serif;
-      background: #fff;
-      color: var(--text-primary)
-    }
-
-    .range-inp:focus {
-      border-color: var(--steel-400);
-      outline: none;
-      box-shadow: 0 0 0 2px rgba(70, 130, 180, .15)
-    }
-
-    .info-chip {
-      background: var(--steel-25);
-      border: 1px solid var(--border-subtle);
-      border-radius: 8px;
-      padding: 9px 13px;
-      font-size: 12.5px
-    }
-
-    .gcard {
-      border: 1px solid var(--border-subtle);
-      border-radius: 10px;
-      padding: 12px;
-      cursor: pointer;
-      transition: all .15s;
-      background: #fff;
-      box-shadow: var(--shadow-sm)
-    }
-
-    .gcard:hover {
-      border-color: var(--steel-300);
-      background: var(--steel-25);
-      transform: translateY(-2px);
-      box-shadow: var(--shadow)
-    }
-
-    .gcard-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 6px
-    }
-
-    .gcard-name {
-      font-size: 12.5px;
-      font-weight: 700;
-      color: var(--text-primary)
-    }
-
-    .gcard-tests {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 3px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis
-    }
-
-    .qa-tile {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 14px 16px;
-      background: #fff;
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
-      cursor: pointer;
-      transition: all .18s;
-      box-shadow: var(--shadow-sm)
-    }
-
-    .qa-tile:hover {
-      background: var(--steel-50);
-      border-color: var(--steel-300);
-      box-shadow: var(--shadow);
-      transform: translateY(-2px)
-    }
-
-    .qa-tile-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 9px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      flex-shrink: 0
-    }
-
-    .qa-tile-text {
-      flex: 1;
-      min-width: 0
-    }
-
-    .qa-tile-label {
-      font-size: 12.5px;
-      font-weight: 700;
-      color: var(--text-primary)
-    }
-
-    .qa-tile-sub {
-      font-size: 10.5px;
-      color: var(--text-muted);
-      margin-top: 1px
-    }
-
-    .text-link {
-      color: var(--steel-500);
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 12.5px
-    }
-
-    .text-link:hover {
-      text-decoration: underline;
-      color: var(--steel-600)
-    }
-
-    .fw {
-      width: 100%
-    }
-
-    .text-right {
-      text-align: right
-    }
-
-    .text-center {
-      text-align: center
-    }
-
-    .mono {
-      font-family: 'DM Mono', monospace;
-      font-size: 12px
-    }
-
-    .hidden {
-      display: none
-    }
-
-    .trunc {
-      max-width: 180px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap
-    }
-
-    hr.divider {
-      border: none;
-      border-top: 1px solid var(--border-subtle);
-      margin: 16px 0
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 40px;
-      color: var(--text-faint);
-      font-size: 13px
-    }
-
-    .tag {
-      display: inline-flex;
-      align-items: center;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 10.5px;
-      font-weight: 600;
-      background: var(--steel-100);
-      color: var(--steel-700);
-      border: 1px solid var(--steel-150);
-      letter-spacing: .2px
-    }
-
-    .mmap-badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 2px 9px;
-      border-radius: 4px;
-      font-size: 10.5px;
-      font-weight: 700;
-      background: var(--amber-100);
-      color: var(--amber-600);
-      border: 1px solid #fde68a;
-      font-family: 'DM Mono', monospace
-    }
-
-    @keyframes fadeSlideIn {
-      from {
-        opacity: 0;
-        transform: translateY(-6px)
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0)
-      }
-    }
-
-    .animate-in {
-      animation: fadeSlideIn .2s ease
-    }
-
-    #login-page {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      background: linear-gradient(145deg, var(--steel-950) 0%, var(--steel-800) 40%, var(--steel-600) 80%, var(--steel-400) 100%);
-      position: relative;
-      overflow: hidden;
-      padding: 20px
-    }
-
-    #login-page::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(ellipse 900px 700px at 70% 30%, rgba(70, 130, 180, .15) 0%, transparent 70%), radial-gradient(ellipse 600px 600px at 20% 80%, rgba(18, 45, 74, .6) 0%, transparent 60%);
-      pointer-events: none
-    }
-
-    .login-right {
-      width: 100%;
-      max-width: 420px;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      z-index: 1
-    }
-
-    .login-card {
-      background: rgba(255, 255, 255, .98);
-      border-radius: 20px;
-      box-shadow: 0 24px 56px rgba(0, 0, 0, .4), inset 0 1px 0 rgba(255, 255, 255, .8);
-      padding: 44px;
-      width: 100%;
-      border: 1px solid rgba(255, 255, 255, .95);
-      backdrop-filter: blur(10px)
-    }
-
-    .login-card-header {
-      margin-bottom: 28px
-    }
-
-    .login-logo {
-      width: 52px;
-      height: 52px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, var(--steel-700), var(--steel-500));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 16px;
-      box-shadow: 0 6px 18px rgba(45, 100, 153, .4)
-    }
-
-    .login-card-title {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--text-primary);
-      font-family: 'Playfair Display', serif;
-      letter-spacing: -.3px;
-      margin-bottom: 4px
-    }
-
-    .login-card-sub {
-      font-size: 12.5px;
-      color: var(--text-muted);
-      font-weight: 400
-    }
-
-    .login-divider {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 20px 0
-    }
-
-    .login-divider::before,
-    .login-divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border-subtle)
-    }
-
-    .login-divider span {
-      font-size: 11px;
-      color: var(--text-faint);
-      font-weight: 500
-    }
-
-    .login-copyright {
-      text-align: center;
-      font-size: 11px;
-      color: var(--text-faint);
-      margin-top: 22px
-    }
-
-    .login-pass-input {
-      flex: 1
-    }
-
-    .login-pass-toggle {
-      background: none;
-      border: 1px solid var(--border-subtle);
-      border-radius: 7px;
-      cursor: pointer;
-      color: var(--text-muted);
-      padding: 8px 10px;
-      margin-left: 6px;
-      flex-shrink: 0;
-      transition: all .14s
-    }
-
-    .login-pass-toggle:hover {
-      background: var(--steel-50);
-      border-color: var(--steel-200);
-      color: var(--steel-600)
-    }
-
-    /* RTE toolbar */
-    .rte-tbtn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 26px;
-      height: 26px;
-      padding: 0 5px;
-      border: 1px solid transparent;
-      border-radius: 4px;
-      background: transparent;
-      cursor: pointer;
-      font-size: 12px;
-      color: var(--text-muted);
-      transition: all .12s;
-      font-family: inherit
-    }
-
-    .rte-tbtn:hover {
-      background: var(--steel-100);
-      border-color: var(--border-subtle);
-      color: var(--text-main)
-    }
-
-    .rte-tbtn:active {
-      background: var(--steel-200)
-    }
-
-    .rte-sep {
-      display: inline-block;
-      width: 1px;
-      height: 20px;
-      background: var(--border-subtle);
-      margin: 0 3px;
-      flex-shrink: 0
-    }
-  </style>
+  <link rel="stylesheet" href="styles.css"/>
 </head>
 
 <body>
   <!-- LOGIN -->
   <div id="login-page">
-    <div class="login-right">
+    <div class="login-right"> 
       <div class="login-card animate-in">
         <div class="login-card-header">
           <div class="login-logo">
@@ -2031,19 +351,21 @@
           { label: 'Cash Summary', path: 'cash-summary' },
           { label: 'Expense Entry', path: 'expense-entry' },
           { label: 'Operator Report', path: 'operator-report' },
-          { label: 'Account Section', id: 'account-section', icon: '📊', children: [
-            { label: 'Center Sale',         path: 'account-section' },
-            { label: 'Income Report',       path: 'income-report' },
-            { label: 'Income Summary',      path: 'income-summary' },
-            { label: 'Daily Transaction',   path: 'daily-transaction' },
-            { label: 'Outstanding Report',  path: 'outstanding-report' },
-            { label: 'Outstanding Summary', path: 'outstanding-summary' },
-            { label: 'Discount Report',     path: 'discount-report' },
-            { label: 'Ref Dr Report Details', path: 'ref-dr-report-details' },
-            { label: 'Ref Dr Report',       path: 'ref-dr-report' },
-            { label: 'Authorize Dr Count',  path: 'authorize-dr-count' },
-            { label: 'Outsource Patient',   path: 'outsource-patient' },
-          ]},
+        ]
+      },
+      {
+        id: 'account-section', icon: '📊', label: 'Account Section', sec: 'ACCOUNTS', children: [
+          { label: 'Center Sale',           path: 'account-section' },
+          { label: 'Income Report',         path: 'income-report' },
+          { label: 'Income Summary',        path: 'income-summary' },
+          { label: 'Daily Transaction',     path: 'daily-transaction' },
+          { label: 'Outstanding Report',    path: 'outstanding-report' },
+          { label: 'Outstanding Summary',   path: 'outstanding-summary' },
+          { label: 'Discount Report',       path: 'discount-report' },
+          { label: 'Ref Dr Report Details', path: 'ref-dr-report-details' },
+          { label: 'Ref Dr Report',         path: 'ref-dr-report' },
+          { label: 'Authorize Dr Count',    path: 'authorize-dr-count' },
+          { label: 'Outsource Patient',     path: 'outsource-patient' },
         ]
       },
       {
@@ -2086,7 +408,7 @@
       },
     ];
 
-    let openMenus = { frontdesk: true, reporting: true, billing: true, master: true };
+    let openMenus = { frontdesk: true, reporting: true, billing: true, 'account-section': true, master: true };
 
     function buildSidebar() {
       let html = '';
@@ -2337,7 +659,7 @@
     </div>
     <div style="display:grid;grid-template-columns:90px 1fr 120px 160px 150px;gap:12px" class="mb2">
       <div><label class="form-label">Title</label><select class="inp" id="reg-init"><option></option><option>Mr.</option><option>Mrs.</option><option>Ms.</option><option>Dr.</option><option>Baby</option><option>Master</option></select></div>
-      <div><label class="form-label">Patient Name <span style="color:#dc2626">*</span></label><input class="inp" id="reg-name" placeholder="Full name"/></div>
+      <div style="position:relative"><label class="form-label">Patient Name <span style="color:#dc2626">*</span></label><input class="inp" id="reg-name" placeholder="Full name" oninput="searchPatientByName(this.value)" autocomplete="off"/><div id="name-drop" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:999;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:220px;overflow-y:auto"></div></div>
       <div><label class="form-label">Gender</label><select class="inp" id="reg-gender" onchange="autoSetTitle()"><option>Male</option><option>Female</option><option>Other</option></select></div>
       <div><label class="form-label">Age</label>
         <div class="flex"><input class="inp" id="reg-age" type="number" placeholder="Age" style="width:75px"/><select class="inp" id="reg-ageunit"><option>Years</option><option>Months</option><option>Days</option></select></div>
@@ -2523,7 +845,7 @@ function addQuickTest() {
           '&#9889; Select a routine to instantly add its tests to the registration. ' +
           'You can manage routines from <strong>Master &#8594; Add Routine</strong>.' +
         '</div>' +
-        '<div style="max-height:420px;overflow-y:auto;padding-right:4px">' + rows + '</div>',
+        '<div style="max-height:420px;overflow-y:auto;padding-right:4px">' + rows + '</div><div style="text-align:center;padding:14px 0 4px"><button class="btn btn-outline-steel" onclick="closeModal()" style="min-width:100px">Close</button></div>',
         '&#9889; Quick Test &#8212; Select Routine',
         'modal-md'
       );
@@ -2556,7 +878,6 @@ function qtAddRoutine(routineId) {
   });
   updateTestsTable();
   recalcBill();
-  closeModal();
   showToast(added + ' test' + (added !== 1 ? 's' : '') + ' added from ' + rt.testName, 'success');
 }
 
@@ -2649,7 +970,7 @@ function applyRoutine(routineId) {
     <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:14px;padding:10px 14px;background:var(--steel-25);border-radius:8px;border:1px solid var(--border-subtle);align-items:center">
       ${['Registered', 'SamCollect', 'SamAccept', 'SamReject', 'Tested', 'Authorized', 'Completed', 'Dispatch'].map(s => `
         <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer">
-          <input type="checkbox" id="ps-toggle-${s}" checked onchange="filterPS()"
+          <input type="checkbox" id="ps-toggle-${s}" checked onchange="onPSStatusChange()"
             style="width:36px;height:20px;accent-color:#e53e3e;cursor:pointer"/> ${s}
         </label>`).join('')}
       <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;margin-left:auto">
@@ -2702,11 +1023,23 @@ function applyRoutine(routineId) {
     <td><button class="btn btn-xs" style="background:#e53e3e;color:#fff;font-size:11px;white-space:nowrap" onclick="showToast(\'WhatsApp sent!\',\'success\')">WhatsApp Not Sent</button></td>
   </tr>`).join('');
     }
+    const PS_STATUSES = ['Registered', 'SamCollect', 'SamAccept', 'SamReject', 'Tested', 'Authorized', 'Completed', 'Dispatch'];
+
     function toggleAllPS(cb) {
-      ['Registered', 'SamCollect', 'SamAccept', 'SamReject', 'Tested', 'Authorized', 'Completed', 'Dispatch'].forEach(s => {
+      PS_STATUSES.forEach(s => {
         const el = document.getElementById('ps-toggle-' + s);
         if (el) el.checked = cb.checked;
       });
+      filterPS();
+    }
+
+    function onPSStatusChange() {
+      const allChecked = PS_STATUSES.every(s => {
+        const el = document.getElementById('ps-toggle-' + s);
+        return el && el.checked;
+      });
+      const allCb = document.getElementById('ps-toggle-All');
+      if (allCb) allCb.checked = allChecked;
       filterPS();
     }
 
@@ -3179,6 +1512,11 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
     //  REF DOCTOR
     // ════════════════════════════════════════════════════════
     function renderRefDoctor() {
+      setTimeout(async () => {
+        await loadRefDoctors();
+        const tbody = document.getElementById('rd-tbody');
+        if (tbody) tbody.innerHTML = renderRDRows(refDoctors);
+      }, 100);
       return `
   ${ph('Referring Doctors', 'Manage referring physicians and specialists.')}
   ${bc('Home', 'Front Desk', 'Referring Doctors')}
@@ -3216,32 +1554,45 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
       const d = id ? refDoctors.find(x => x.id === id) : null;
       showModal(`
         <div class="mb2">
-          <label class="form-label">Name <span style="color:#dc2626">*</span></label>
-          <input class="inp" id="rdm-name" value="${d?.name || ''}"/>
+          <label class="form-label">Doctor Name <span style="color:#dc2626">*</span></label>
+          <input class="inp" id="rdm-name" value="${d?.name || ''}" placeholder="Full name"/>
         </div>
         <div class="g2 mb2">
           <div><label class="form-label">Mobile</label>
-            <input class="inp" id="rdm-mob" value="${d?.mobile || ''}"/></div>
+            <input class="inp" id="rdm-mob" value="${d?.mobile || ''}" placeholder="Mobile number"/></div>
           <div><label class="form-label">Email</label>
-            <input class="inp" id="rdm-email" value="${d?.email || ''}"/></div>
+            <input class="inp" id="rdm-email" type="email" value="${d?.email || ''}" placeholder="Email address"/></div>
         </div>
         <div class="g2 mb2">
           <div><label class="form-label">City</label>
-            <input class="inp" id="rdm-city" value="${d?.city || ''}"/></div>
+            <input class="inp" id="rdm-city" value="${d?.city || ''}" placeholder="City"/></div>
           <div><label class="form-label">Address</label>
-            <input class="inp" id="rdm-addr" value="${d?.address || ''}"/></div>
+            <input class="inp" id="rdm-addr" value="${d?.address || ''}" placeholder="Full address"/></div>
         </div>
-        <div class="mb2"><label class="form-label">Rate List</label>
-          <select class="inp" id="rdm-rl">
-            <option value="">— None —</option>
-            ${rateLists.map(r => `<option value="${r.id}" ${d?.rateListId == r.id ? 'selected' : ''}>${r.name}</option>`).join('')}
-          </select>
+        <div class="g2 mb2">
+          <div><label class="form-label">Patient Type</label>
+            <select class="inp" id="rdm-ptype">
+              <option value="OPD" ${d?.patientType==='OPD'?'selected':''}>OPD</option>
+              <option value="IPD" ${d?.patientType==='IPD'?'selected':''}>IPD</option>
+              <option value="Corporate" ${d?.patientType==='Corporate'?'selected':''}>Corporate</option>
+            </select>
+          </div>
+          <div><label class="form-label">Rate Type</label>
+            <select class="inp" id="rdm-ratetype">
+              <option value="MRP" ${d?.rateType==='MRP'?'selected':''}>MRP Rate</option>
+              <option value="Special" ${d?.rateType==='Special'?'selected':''}>Special Rate</option>
+              <option value="Corporate" ${d?.rateType==='Corporate'?'selected':''}>Corporate Rate</option>
+            </select>
+          </div>
         </div>
+        <div id="rdm-msg" style="display:none;padding:8px 12px;border-radius:6px;font-size:13px;margin-bottom:10px"></div>
         <div style="display:flex;justify-content:flex-end;gap:8px">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-          <button class="btn btn-success" onclick="saveRD(${id || 'null'})">Save Doctor</button>
+          <button class="btn btn-success" id="rdm-save-btn" onclick="saveRD(${id || 'null'})">
+            ${id ? '💾 Update Doctor' : '➕ Add Doctor'}
+          </button>
         </div>
-      `, d ? 'Edit Doctor' : 'Add Referring Doctor', 'modal-md');
+      `, d ? 'Edit Referring Doctor' : 'Add Referring Doctor', 'modal-md');
     }
 
     let prData = [];
@@ -3658,12 +2009,17 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
           th{background:#5b9bd5;color:#fff;padding:6px 8px;text-align:left}
           td{border-bottom:1px solid #eee;padding:4px 8px}
           .hdr{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;border:1px solid #ccc;padding:6px;margin-bottom:8px;font-size:12px}
-          .hdr-cell{display:flex;gap:4px}<br>
+          .hdr-cell{display:flex;gap:4px}
           .btn{padding:6px 16px;border:none;border-radius:4px;cursor:pointer;font-weight:600;font-size:13px}
           .btn-print{background:#26c0b5;color:#fff}
           .btn-close{background:#888;color:#fff}
           .btn-dept{background:#26c0b5;color:#fff}
           .btns{display:flex;gap:8px;margin-top:12px}
+          @media print{
+            body * { visibility: hidden; }
+            #bc-area, #bc-area * { visibility: visible; }
+            #bc-area { position: fixed; top: 0; left: 0; width: 100%; }
+          }
         </style>
         <scr`+'ipt src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></scr'+'ipt>'+`
       </head><body>
@@ -3694,13 +2050,17 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
             area.innerHTML = '';
             document.querySelectorAll('.bc-chk:checked').forEach(chk => {
               const div = document.createElement('div');
-              div.style.cssText = 'display:inline-block;margin:6px;text-align:center;border:1px solid #eee;padding:6px';
-              div.innerHTML = '<div style="font-size:11px;font-weight:700;margin-bottom:2px">' + chk.dataset.test + '</div>' +
+              div.style.cssText = 'display:inline-block;margin:10px;text-align:center;padding:8px;page-break-inside:avoid';
+              div.innerHTML = '<div style="font-size:12px;font-weight:700;margin-bottom:4px">' + chk.dataset.test + '</div>' +
                 '<svg class="bc-svg"></svg>';
               area.appendChild(div);
-              JsBarcode(div.querySelector('.bc-svg'), chk.dataset.barcode, {width:1.5, height:50, displayValue:true, fontSize:10});
+              JsBarcode(div.querySelector('.bc-svg'), chk.dataset.barcode, {width:2, height:60, displayValue:true, fontSize:12});
             });
-            setTimeout(() => window.print(), 500);
+            if (!area.children.length) {
+              alert('Please select at least one barcode to print');
+              return;
+            }
+            setTimeout(() => window.print(), 600);
           }
         </scr`+'ipt>'+`
       </body></html>`;
@@ -7919,7 +6279,8 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
           showToast('Saved locally — backend unreachable', 'warn');
         });
 
-      navigate('new-registration');
+      // Show success popup instead of plain navigate
+      showRegistrationSuccess(regNoVal, name, selectedTests.map(function(t){return t.name;}).join(', '), afterDisc);
     }
 
     // 5. saveTest — correct URL
@@ -8062,20 +6423,16 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
     // 9. Load referring doctors from backend
     async function loadRefDoctors() {
       try {
-        const res = await apiFetch('/api/v1/referring-doctors?page=0&size=500');
-        if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
-          refDoctors = res.data.map(d => ({
-            id: d.id,
-            code: d.code || '',
-            name: d.name || '',
-            mobile: d.mobile || '',
-            email: d.email || '',
-            address: d.address || '',
-            city: d.city || '',
-            patientType: d.patientType || 'OPD',
-            rateType: d.rateType || 'MRP'
+        const res  = await apiFetch('/api/v1/referring-doctors');
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+          refDoctors = data.data.map(d => ({
+            id: d.id, code: d.code || '', name: d.name || '',
+            mobile: d.mobile || '', email: d.email || '',
+            address: d.address || '', city: d.city || '',
+            patientType: d.patientType || 'OPD', rateType: d.rateType || 'MRP'
           }));
-          console.log('✅ Loaded', refDoctors.length, 'referring doctors from DB');
+          console.log('Loaded', refDoctors.length, 'referring doctors from DB');
         }
       } catch (e) {
         console.warn('loadRefDoctors error:', e);
@@ -9080,6 +7437,7 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
             '<div><label class="form-label">To</label><input class="inp" type="date" id="ir-to" value="' + isoToday() + '"/></div>' +
             '<div><label class="form-label">Center</label><select class="inp" id="ir-center"><option value="">All Centers</option></select></div>' +
             '<button class="btn btn-primary" onclick="irLoad()" style="align-self:flex-end">Search</button>' +
+            '<button class="btn btn-outline-steel" onclick="irPrint()" style="align-self:flex-end">🖨 Print</button>' +
           '</div>' +
         '</div>' +
         '<div class="card" style="padding:0;overflow:hidden">' +
@@ -9193,6 +7551,7 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
             '<div><label class="form-label">From</label><input class="inp" type="date" id="or-from" value="' + new Date(Date.now()-30*864e5).toISOString().slice(0,10) + '"/></div>' +
             '<div><label class="form-label">To</label><input class="inp" type="date" id="or-to" value="' + isoToday() + '"/></div>' +
             '<button class="btn btn-primary" onclick="orLoad()" style="align-self:flex-end">Search</button>' +
+            '<button class="btn btn-outline-steel" onclick="orPrint()" style="align-self:flex-end">🖨 Print</button>' +
           '</div>' +
         '</div>' +
         '<div class="card" style="padding:0;overflow:hidden">' +
@@ -9253,6 +7612,7 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
             '<div><label class="form-label">From</label><input class="inp" type="date" id="dr2-from" value="' + isoToday() + '"/></div>' +
             '<div><label class="form-label">To</label><input class="inp" type="date" id="dr2-to" value="' + isoToday() + '"/></div>' +
             '<button class="btn btn-primary" onclick="dr2Load()" style="align-self:flex-end">Search</button>' +
+            '<button class="btn btn-outline-steel" onclick="dr2Print()" style="align-self:flex-end">🖨 Print</button>' +
           '</div>' +
         '</div>' +
         '<div class="card" style="padding:0;overflow:hidden">' +
@@ -9314,6 +7674,7 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
             '<div><label class="form-label">From</label><input class="inp" type="date" id="rdr-from" value="' + isoToday() + '"/></div>' +
             '<div><label class="form-label">To</label><input class="inp" type="date" id="rdr-to" value="' + isoToday() + '"/></div>' +
             '<button class="btn btn-primary" onclick="rdrLoad()" style="align-self:flex-end">Search</button>' +
+            '<button class="btn btn-outline-steel" onclick="rdrPrint()" style="align-self:flex-end">🖨 Print</button>' +
           '</div>' +
         '</div>' +
         '<div class="card" style="padding:0;overflow:hidden">' +
@@ -9410,6 +7771,735 @@ function pchDeptBarcode(id) { showToast('Generating department wise barcode…',
       return ph('Outsource Patient','Patients referred to outsource labs.')+
         bc('Home','Account Section','Outsource Patient')+
         '<div class="card"><div class="empty-state">Coming soon — outsource patient tracking.</div></div>';
+    }
+
+
+    // ════════════════════════════════════════════════════════
+    //  ACCOUNT SECTION — PRINT FUNCTIONS
+    // ════════════════════════════════════════════════════════
+
+    function reportPrintBase(title, dateRange, bodyHtml) {
+      var now = new Date();
+      var timeStr = now.toLocaleDateString('en-GB') + '  ' + now.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      var user = document.getElementById('sb-uname') ? document.getElementById('sb-uname').textContent : 'Admin';
+      var html = '<!DOCTYPE html><html><head><title>' + title + '</title>' +
+        '<style>' +
+        'body{font-family:Arial,sans-serif;font-size:12px;margin:20px;color:#000}' +
+        '.report-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}' +
+        '.report-title{border:1.5px solid #000;padding:4px 18px;font-size:15px;font-weight:700;display:inline-block}' +
+        '.meta-row{display:flex;justify-content:space-between;margin-bottom:2px;font-size:12px}' +
+        'table{border-collapse:collapse;width:100%;margin-top:8px}' +
+        'th{border-bottom:1.5px solid #000;padding:5px 8px;text-align:left;font-size:11.5px}' +
+        'td{padding:4px 8px;border-bottom:1px dotted #bbb;font-size:11.5px;vertical-align:top}' +
+        '.tr{text-align:right}.tright{text-align:right}' +
+        '.center-heading{font-weight:700;font-size:12px;margin-top:4px}' +
+        '.total-row td{font-weight:700;border-top:1.5px solid #000;border-bottom:1.5px solid #000}' +
+        '.final-row td{font-weight:800;font-size:13px;border-top:2px solid #000}' +
+        '@media print{body{margin:10px}}' +
+        '</style></head><body>' +
+        '<div class="report-header">' +
+          '<div style="font-size:11px">Page 1 of 1</div>' +
+          '<div class="report-title">' + title + '</div>' +
+          '<div style="text-align:right;font-size:11px">' + timeStr + '</div>' +
+        '</div>' +
+        '<div class="meta-row">' +
+          '<div><b>Date:</b> ' + dateRange + '</div>' +
+          '<div><b>Printed By:</b> ' + user + '</div>' +
+        '</div>' +
+        bodyHtml +
+        '</body></html>';
+      var win = window.open('', '_blank', 'width=900,height=700');
+      win.document.write(html);
+      win.document.close();
+      setTimeout(function(){ win.print(); }, 600);
+    }
+
+    // ── Income Report Print ──
+    function irPrint() {
+      var from = document.getElementById('ir-from') ? document.getElementById('ir-from').value : isoToday();
+      var to   = document.getElementById('ir-to')   ? document.getElementById('ir-to').value   : isoToday();
+      var tbody = document.getElementById('ir-tbody');
+      if (!tbody || tbody.querySelectorAll('tr').length <= 1) { showToast('Load data first, then print.', 'warn'); return; }
+      var token = authToken || localStorage.getItem('lis_token') || '';
+      fetch('http://localhost:8081/api/v1/billing?from='+from+'&to='+to+'&page=0&size=500', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      }).then(function(r){ return r.json(); })
+        .then(function(data) {
+          var rows = (data.success && data.data && data.data.content) ? data.data.content : [];
+          // Group by center
+          var centers = {};
+          rows.forEach(function(r) {
+            var c = r.center || 'OPD';
+            if (!centers[c]) centers[c] = [];
+            centers[c].push(r);
+          });
+          var body = '<table><thead><tr>' +
+            '<th>R.No</th><th>Date</th><th>Patient Name</th><th>Doctor Name</th>' +
+            '<th>Test Name</th><th class="tright">Charges</th><th class="tright">Disc.</th>' +
+            '<th class="tright">Amt Paid</th><th class="tright">Balance</th>' +
+          '</tr></thead><tbody>';
+          var grandBill=0, grandPaid=0, grandDis=0, grandBal=0;
+          Object.keys(centers).forEach(function(cname) {
+            body += '<tr><td colspan="9" class="center-heading">Center Name : &nbsp;&nbsp; ' + cname + '</td></tr>';
+            var crows = centers[cname];
+            var cBill=0, cPaid=0, cDis=0, cBal=0;
+            crows.forEach(function(r) {
+              var dt = r.billDate ? new Date(r.billDate).toLocaleDateString('en-GB') : '-';
+              var b=parseFloat(r.billAmt||0), p=parseFloat(r.amtPaid||0), d=parseFloat(r.disAmt||0), bal=parseFloat(r.balAmt||0);
+              cBill+=b; cPaid+=p; cDis+=d; cBal+=bal;
+              body += '<tr>' +
+                '<td>'+(r.regNo||'-')+'</td>' +
+                '<td>'+dt+'</td>' +
+                '<td>'+(r.patientName||'-')+'</td>' +
+                '<td>'+(r.refDoctor||'Self')+'</td>' +
+                '<td style="max-width:200px">'+(r.testNames||r.tests||'-')+'</td>' +
+                '<td class="tright">'+b.toFixed(2)+'</td>' +
+                '<td class="tright">'+d.toFixed(2)+'</td>' +
+                '<td class="tright">'+p.toFixed(2)+'</td>' +
+                '<td class="tright">'+bal.toFixed(2)+'</td>' +
+              '</tr>';
+            });
+            grandBill+=cBill; grandPaid+=cPaid; grandDis+=cDis; grandBal+=cBal;
+            body += '<tr class="total-row">' +
+              '<td colspan="4" style="text-align:right;font-size:12px">Center wise Total : &nbsp;&nbsp; <b>' + cname + '</b></td>' +
+              '<td></td>' +
+              '<td class="tright">'+cBill.toFixed(2)+'</td>' +
+              '<td class="tright">'+cDis.toFixed(2)+'</td>' +
+              '<td class="tright">'+cPaid.toFixed(2)+'</td>' +
+              '<td class="tright">'+cBal.toFixed(2)+'</td>' +
+            '</tr>';
+          });
+          body += '<tr class="final-row">' +
+            '<td colspan="4" style="text-align:right">Final Total :</td><td></td>' +
+            '<td class="tright">'+grandBill.toFixed(2)+'</td>' +
+            '<td class="tright">'+grandDis.toFixed(2)+'</td>' +
+            '<td class="tright">'+grandPaid.toFixed(2)+'</td>' +
+            '<td class="tright">'+grandBal.toFixed(2)+'</td>' +
+          '</tr>';
+          body += '</tbody></table>';
+          var dr = new Date(from).toLocaleDateString('en-GB') + ' To ' + new Date(to).toLocaleDateString('en-GB');
+          reportPrintBase('Income Report', dr, body);
+        }).catch(function(){ showToast('Error loading data for print.', 'error'); });
+    }
+
+    // ── Outstanding Report Print ──
+    function orPrint() {
+      var from = document.getElementById('or-from') ? document.getElementById('or-from').value : '';
+      var to   = document.getElementById('or-to')   ? document.getElementById('or-to').value   : '';
+      var tbody = document.getElementById('or-tbody');
+      if (!tbody || tbody.querySelectorAll('tr').length <= 1) { showToast('Load data first, then print.', 'warn'); return; }
+      var token = authToken || localStorage.getItem('lis_token') || '';
+      fetch('http://localhost:8081/api/v1/account/outstanding?from='+from+'&to='+to, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      }).then(function(r){ return r.json(); })
+        .then(function(data) {
+          var rows = (data.success && data.data) ? data.data : [];
+          var body = '<table><thead><tr>' +
+            '<th>Reg No</th><th>Date</th><th>Patient Name</th><th>Mobile</th>' +
+            '<th>Center</th><th>Ref Doctor</th>' +
+            '<th class="tright">Charges</th><th class="tright">Paid</th><th class="tright">Balance</th>' +
+          '</tr></thead><tbody>';
+          var totBal=0, totChg=0, totPaid=0;
+          rows.forEach(function(r) {
+            var dt = r.date ? new Date(r.date).toLocaleDateString('en-GB') : '-';
+            var b=parseFloat(r.balance||0), c=parseFloat(r.charges||0), p=parseFloat(r.paid||0);
+            totBal+=b; totChg+=c; totPaid+=p;
+            body += '<tr>' +
+              '<td>'+(r.regNo||'-')+'</td><td>'+dt+'</td>' +
+              '<td>'+(r.name||'-')+'</td><td>'+(r.mobile||'-')+'</td>' +
+              '<td>'+(r.center||'-')+'</td><td>'+(r.refDoctor||'Self')+'</td>' +
+              '<td class="tright">'+c.toFixed(2)+'</td>' +
+              '<td class="tright">'+p.toFixed(2)+'</td>' +
+              '<td class="tright" style="color:#dc2626;font-weight:700">'+b.toFixed(2)+'</td>' +
+            '</tr>';
+          });
+          body += '<tr class="total-row"><td colspan="6">Total Outstanding ('+rows.length+' patients)</td>' +
+            '<td class="tright">'+totChg.toFixed(2)+'</td>' +
+            '<td class="tright">'+totPaid.toFixed(2)+'</td>' +
+            '<td class="tright">'+totBal.toFixed(2)+'</td></tr>';
+          body += '</tbody></table>';
+          var dr = new Date(from).toLocaleDateString('en-GB') + ' To ' + new Date(to).toLocaleDateString('en-GB');
+          reportPrintBase('Outstanding Report', dr, body);
+        }).catch(function(){ showToast('Error loading data for print.', 'error'); });
+    }
+
+    // ── Discount Report Print ──
+    function dr2Print() {
+      var from = document.getElementById('dr2-from') ? document.getElementById('dr2-from').value : '';
+      var to   = document.getElementById('dr2-to')   ? document.getElementById('dr2-to').value   : '';
+      var tbody = document.getElementById('dr2-tbody');
+      if (!tbody || tbody.querySelectorAll('tr').length <= 1) { showToast('Load data first, then print.', 'warn'); return; }
+      var token = authToken || localStorage.getItem('lis_token') || '';
+      fetch('http://localhost:8081/api/v1/account/discount-report?from='+from+'&to='+to, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      }).then(function(r){ return r.json(); })
+        .then(function(data) {
+          var rows = (data.success && data.data) ? data.data : [];
+          var body = '<table><thead><tr>' +
+            '<th>Date</th><th>PatReg</th><th>Name</th><th>Phone No</th>' +
+            '<th>Ref Dr</th><th>DisRemark</th><th>user name</th>' +
+            '<th class="tright">Bill Amt</th><th class="tright">Discount</th>' +
+          '</tr></thead><tbody>';
+          var totBill=0, totDis=0;
+          rows.forEach(function(r) {
+            var dt = r.billDate ? new Date(r.billDate).toLocaleDateString('en-GB') : '-';
+            var b=parseFloat(r.billAmt||0), d=parseFloat(r.disAmt||0);
+            totBill+=b; totDis+=d;
+            body += '<tr>' +
+              '<td>'+dt+'</td>' +
+              '<td>'+(r.regNo||'-')+'</td>' +
+              '<td>'+(r.patientName||'-')+'</td>' +
+              '<td>'+(r.mobile||'-')+'</td>' +
+              '<td>'+(r.refDoctor||'Self')+'</td>' +
+              '<td>'+(r.disRemark||'-')+'</td>' +
+              '<td>'+(r.userName||'Admin')+'</td>' +
+              '<td class="tright">'+b.toFixed(2)+'</td>' +
+              '<td class="tright">'+d.toFixed(2)+'</td>' +
+            '</tr>';
+          });
+          body += '<tr class="total-row"><td colspan="7" style="text-align:right">Total :</td>' +
+            '<td class="tright">'+totBill.toFixed(2)+'</td>' +
+            '<td class="tright">'+totDis.toFixed(2)+'</td></tr>';
+          body += '</tbody></table>';
+          var dr = new Date(from).toLocaleDateString('en-GB') + ' To ' + new Date(to).toLocaleDateString('en-GB');
+          reportPrintBase('Discount Report', dr, body);
+        }).catch(function(){ showToast('Error loading data for print.', 'error'); });
+    }
+
+    // ── Ref Dr Report Print ──
+    function rdrPrint() {
+      var from = document.getElementById('rdr-from') ? document.getElementById('rdr-from').value : '';
+      var to   = document.getElementById('rdr-to')   ? document.getElementById('rdr-to').value   : '';
+      var tbody = document.getElementById('rdr-tbody');
+      if (!tbody || tbody.querySelectorAll('tr').length <= 1) { showToast('Load data first, then print.', 'warn'); return; }
+      var token = authToken || localStorage.getItem('lis_token') || '';
+      fetch('http://localhost:8081/api/v1/account/center-sale?from='+from+'&to='+to, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      }).then(function(r){ return r.json(); })
+        .then(function(data) {
+          var rows = (data.success && data.data && data.data.doctorWise) ? data.data.doctorWise : [];
+          var body = '<table><thead><tr>' +
+            '<th>#</th><th>Ref Doctor</th>' +
+            '<th class="tright">Patients</th><th class="tright">Total Bill</th>' +
+            '<th class="tright">Paid</th><th class="tright">Balance</th>' +
+          '</tr></thead><tbody>';
+          var totPat=0, totBill=0, totPaid=0, totBal=0;
+          rows.forEach(function(r, i) {
+            var b=parseFloat(r.bill||0), p=parseFloat(r.paid||0), bal=b-p;
+            totPat+=parseInt(r.count||0); totBill+=b; totPaid+=p; totBal+=bal;
+            body += '<tr>' +
+              '<td>'+(i+1)+'</td>' +
+              '<td>'+(r.doctor||'-')+'</td>' +
+              '<td class="tright">'+r.count+'</td>' +
+              '<td class="tright">'+b.toFixed(2)+'</td>' +
+              '<td class="tright">'+p.toFixed(2)+'</td>' +
+              '<td class="tright">'+bal.toFixed(2)+'</td>' +
+            '</tr>';
+          });
+          body += '<tr class="total-row"><td colspan="2">Total</td>' +
+            '<td class="tright">'+totPat+'</td>' +
+            '<td class="tright">'+totBill.toFixed(2)+'</td>' +
+            '<td class="tright">'+totPaid.toFixed(2)+'</td>' +
+            '<td class="tright">'+totBal.toFixed(2)+'</td></tr>';
+          body += '</tbody></table>';
+          var dr = new Date(from).toLocaleDateString('en-GB') + ' To ' + new Date(to).toLocaleDateString('en-GB');
+          reportPrintBase('Ref Dr Report', dr, body);
+        }).catch(function(){ showToast('Error loading data for print.', 'error'); });
+    }
+
+  
+    function searchPatientByName(val) {
+      var drop = document.getElementById('name-drop');
+      if (!drop) return;
+      if (!val || val.length < 2) { drop.style.display = 'none'; return; }
+      var matches = patients.filter(function(p) {
+        return p.name && p.name.toLowerCase().indexOf(val.toLowerCase()) !== -1;
+      }).slice(0, 8);
+      if (!matches.length) { drop.style.display = 'none'; return; }
+      drop.innerHTML = matches.map(function(p) {
+        return '<div onclick="fillPatientFromHistory(' + p.id + ')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:13px" onmouseover="this.style.background=\'#f0f7ff\'" onmouseout="this.style.background=\'\'">' +
+          '<div style="font-weight:600;color:#1e293b">' + p.name + '</div>' +
+          '<div style="font-size:11px;color:#64748b">' + (p.mobile||'') + ' · ' + (p.gender||'') + ' · ' + (p.age||'') + ' ' + (p.ageUnit||'Yrs') + ' · ' + (p.center||'OPD') + '</div></div>';
+      }).join('');
+      drop.style.display = 'block';
+      setTimeout(function() {
+        document.addEventListener('click', function nc(e) {
+          var d = document.getElementById('name-drop');
+          if (d && e.target.id !== 'reg-name' && !d.contains(e.target)) {
+            d.style.display = 'none'; document.removeEventListener('click', nc);
+          }
+        });
+      }, 0);
+    }
+    function fillPatientFromHistory(id) {
+      var p = patients.find(function(x){ return x.id === id; });
+      if (!p) return;
+      function sv(eid,v){ var el=document.getElementById(eid); if(el) el.value=v||''; }
+      sv('reg-name',p.name); sv('reg-gender',p.gender); sv('reg-age',p.age);
+      sv('reg-ageunit',p.ageUnit||'Years'); sv('reg-mob',p.mobile);
+      sv('reg-email',p.email); sv('reg-address',p.address);
+      if(p.dob) sv('reg-dob',p.dob);
+      autoSetTitle();
+      var drop=document.getElementById('name-drop'); if(drop) drop.style.display='none';
+      showToast('Patient filled: '+p.name,'info');
+    }
+
+  
+    function calcAgeFromDOB() {
+      const dob = document.getElementById('reg-dob')?.value;
+      if (!dob) return;
+      const today = new Date();
+      const birth = new Date(dob);
+      let years = today.getFullYear() - birth.getFullYear();
+      let months = today.getMonth() - birth.getMonth();
+      const days = today.getDate() - birth.getDate();
+      if (days < 0) months--;
+      if (months < 0) { years--; months += 12; }
+      const ageEl = document.getElementById('reg-age');
+      const unitEl = document.getElementById('reg-ageunit');
+      if (!ageEl || !unitEl) return;
+      if (years >= 1) { ageEl.value = years; unitEl.value = 'Years'; }
+      else if (months >= 1) { ageEl.value = months; unitEl.value = 'Months'; }
+      else { ageEl.value = Math.max(0, Math.floor((today - birth) / 86400000)); unitEl.value = 'Days'; }
+    }
+
+    function autoSetTitle() {
+      const gender = document.getElementById('reg-gender')?.value;
+      const titleEl = document.getElementById('reg-init');
+      if (!titleEl) return;
+      if (gender === 'Male') titleEl.value = 'Mr.';
+      else if (gender === 'Female') titleEl.value = 'Mrs.';
+      else titleEl.value = '';
+    }
+
+  
+    // ── PCH Test Search (Edit Patient) ──
+    function searchTestsPCH(val) {
+      const drop = document.getElementById('pch-tdrop');
+      if (!drop) return;
+      if (!val || val.length < 1) { drop.classList.add('hidden'); return; }
+      const res = testCatalog.filter(t =>
+        (t.name||'').toLowerCase().includes(val.toLowerCase()) ||
+        (t.code||'').toLowerCase().includes(val.toLowerCase())
+      );
+      if (!res.length) { drop.classList.add('hidden'); return; }
+      drop.innerHTML = res.map(t =>
+        '<div class="search-drop-item" onclick="addTestPCH(' + t.id + ')">' +
+        '<span style="font-weight:600">' + t.name + '</span>' +
+        '<span style="color:var(--text-faint);font-size:11px;margin-left:8px">' + t.code + ' &middot; &#8377;' + t.rate + '</span>' +
+        '</div>'
+      ).join('');
+      drop.classList.remove('hidden');
+    }
+
+    function addTestPCH(id) {
+      const t = testCatalog.find(x => x.id === id);
+      if (!t) return;
+      if (pchSelectedTests.find(x => x.id === id)) {
+        showToast('Test already added', 'warn'); return;
+      }
+      pchSelectedTests.push({ id: t.id, code: t.code, name: t.name, type: t.type, rate: t.rate, modifyRate: t.rate });
+      const inp = document.getElementById('pch-tinp');
+      if (inp) inp.value = '';
+      const drop = document.getElementById('pch-tdrop');
+      if (drop) drop.classList.add('hidden');
+      const tbody = document.getElementById('pch-tbody');
+      if (tbody) tbody.innerHTML = renderPCHTestRows();
+      pchRecalcTotal();
+      showToast(t.name + ' added', 'success');
+    }
+
+  
+    // ════════════════════════════════════════
+    // REGISTRATION SUCCESS POPUP
+    // ════════════════════════════════════════
+    function showRegistrationSuccess(regNo, patientName, tests, totalAmt) {
+      var overlay = document.createElement('div');
+      overlay.id = 'reg-success-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease';
+
+      var testList = (tests||'').split(', ').filter(Boolean).map(function(t) {
+        return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f0f7ff">' +
+          '<span style="width:8px;height:8px;background:#15803d;border-radius:50%;flex-shrink:0"></span>' +
+          '<span style="font-size:13px;color:#1e293b">' + t + '</span></div>';
+      }).join('');
+
+      overlay.innerHTML =
+        '<div style="background:#fff;border-radius:16px;padding:0;width:460px;max-width:94vw;box-shadow:0 24px 64px rgba(0,0,0,0.22);overflow:hidden;animation:popIn .3s cubic-bezier(.34,1.56,.64,1)">' +
+
+          // Green header
+          '<div style="background:linear-gradient(135deg,#15803d,#16a34a);padding:28px 28px 20px;text-align:center">' +
+            '<div style="width:64px;height:64px;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:32px">✅</div>' +
+            '<div style="color:#fff;font-size:20px;font-weight:800;letter-spacing:-.3px">Registration Successful!</div>' +
+            '<div style="color:rgba(255,255,255,0.85);font-size:13px;margin-top:4px">Patient has been registered in the system</div>' +
+          '</div>' +
+
+          // Details body
+          '<div style="padding:22px 28px">' +
+
+            // Reg number chip
+            '<div style="background:#f0fdf4;border:2px solid #bbf7d0;border-radius:10px;padding:12px 18px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center">' +
+              '<div>' +
+                '<div style="font-size:11px;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:.6px">Registration Number</div>' +
+                '<div style="font-size:24px;font-weight:900;color:#15803d;font-family:monospace;letter-spacing:1px">' + regNo + '</div>' +
+              '</div>' +
+              '<div style="text-align:right">' +
+                '<div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px">Patient</div>' +
+                '<div style="font-size:16px;font-weight:700;color:#1e293b">' + patientName + '</div>' +
+              '</div>' +
+            '</div>' +
+
+            // Tests ordered
+            '<div style="margin-bottom:18px">' +
+              '<div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Tests Ordered</div>' +
+              '<div style="background:#f8fafc;border-radius:8px;padding:8px 12px;max-height:120px;overflow-y:auto">' +
+                (testList || '<div style="color:#94a3b8;font-size:13px">No tests selected</div>') +
+              '</div>' +
+            '</div>' +
+
+            // Amount
+            '<div style="background:#eff6ff;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">' +
+              '<span style="font-size:13px;font-weight:600;color:#1e40af">Total Amount</span>' +
+              '<span style="font-size:18px;font-weight:800;color:#1e40af;font-family:monospace">₹' + totalAmt + '</span>' +
+            '</div>' +
+
+            // OK button
+            '<button onclick="dismissRegSuccess()" ' +
+              'style="width:100%;padding:14px;background:#15803d;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;letter-spacing:.3px" ' +
+              'onmouseover="this.style.background=\'#166534\'" ' +
+              'onmouseout="this.style.background=\'#15803d\'">' +
+              'OK — Continue to New Registration' +
+            '</button>' +
+
+          '</div>' +
+        '</div>' +
+        '<style>' +
+          '@keyframes popIn{from{transform:scale(0.7);opacity:0}to{transform:scale(1);opacity:1}}' +
+          '@keyframes fadeIn{from{opacity:0}to{opacity:1}}' +
+        '</style>';
+
+      document.body.appendChild(overlay);
+    }
+
+    function dismissRegSuccess() {
+      var overlay = document.getElementById('reg-success-overlay');
+      if (overlay) {
+        overlay.style.animation = 'fadeIn .15s ease reverse';
+        setTimeout(function() { overlay.remove(); }, 150);
+      }
+      navigate('new-registration');
+    }
+
+  
+    async function saveRD(id) {
+      const name = document.getElementById('rdm-name')?.value.trim();
+      if (!name) { showToast('Doctor name is required', 'error'); return; }
+
+      const mobile = document.getElementById('rdm-mob')?.value.trim() || '';
+      const email  = document.getElementById('rdm-email')?.value.trim() || '';
+      const city   = document.getElementById('rdm-city')?.value.trim() || '';
+      const addr   = document.getElementById('rdm-addr')?.value.trim() || '';
+      const ptype  = document.getElementById('rdm-ptype')?.value || 'OPD';
+      const rtype  = document.getElementById('rdm-ratetype')?.value || 'MRP';
+
+      const payload = { name, mobile, email, address: addr, city, patientType: ptype, rateType: rtype };
+
+      const btn = document.getElementById('rdm-save-btn');
+      const msg = document.getElementById('rdm-msg');
+      if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+      const isEdit = id && id !== 'null';
+      const url    = isEdit ? '/api/v1/referring-doctors/' + id : '/api/v1/referring-doctors';
+      const method = isEdit ? 'PUT' : 'POST';
+
+      try {
+        const res  = await apiFetch(url, { method, body: JSON.stringify(payload) });
+        const data = await res.json();
+
+        if (data.success && data.data) {
+          const d = data.data;
+          // Update local refDoctors array
+          if (isEdit) {
+            const idx = refDoctors.findIndex(x => x.id == id);
+            if (idx >= 0) refDoctors[idx] = { id: d.id, code: d.code, name: d.name, mobile: d.mobile, email: d.email, address: d.address, city: d.city, patientType: d.patientType, rateType: d.rateType };
+          } else {
+            refDoctors.push({ id: d.id, code: d.code, name: d.name, mobile: d.mobile, email: d.email, address: d.address, city: d.city, patientType: d.patientType, rateType: d.rateType });
+          }
+          showToast(isEdit ? 'Doctor updated successfully!' : 'Doctor added successfully!', 'success');
+          closeModal();
+          navigate('ref-doctor');
+        } else {
+          const errMsg = data.message || 'Save failed. Please try again.';
+          if (msg) { msg.style.display='block'; msg.style.background='#fee2e2'; msg.style.color='#dc2626'; msg.textContent = '❌ ' + errMsg; }
+          showToast(errMsg, 'error');
+          if (btn) { btn.disabled = false; btn.textContent = isEdit ? '💾 Update Doctor' : '➕ Add Doctor'; }
+        }
+      } catch(e) {
+        console.error('saveRD error:', e);
+        if (msg) { msg.style.display='block'; msg.style.background='#fee2e2'; msg.style.color='#dc2626'; msg.textContent = '❌ Cannot reach server. Check backend connection.'; }
+        showToast('Backend unreachable', 'error');
+        if (btn) { btn.disabled = false; btn.textContent = isEdit ? '💾 Update Doctor' : '➕ Add Doctor'; }
+      }
+    }
+  
+    // ── Referring Doctor Save (API-connected, fixed) ──
+    async function saveRD(id) {
+      const name = (document.getElementById('rdm-name')?.value || '').trim();
+      if (!name) { showToast('Doctor name is required', 'error'); return; }
+
+      const payload = {
+        name,
+        mobile:      (document.getElementById('rdm-mob')?.value     || '').trim(),
+        email:       (document.getElementById('rdm-email')?.value   || '').trim(),
+        city:        (document.getElementById('rdm-city')?.value    || '').trim(),
+        address:     (document.getElementById('rdm-addr')?.value    || '').trim(),
+        patientType: (document.getElementById('rdm-ptype')?.value   || 'OPD'),
+        rateType:    (document.getElementById('rdm-ratetype')?.value|| 'MRP'),
+      };
+
+      const btn  = document.getElementById('rdm-save-btn');
+      const msg  = document.getElementById('rdm-msg');
+      if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+      const isEdit = id && id !== 'null';
+      const url    = 'http://localhost:8081/api/v1/referring-doctors' + (isEdit ? '/' + id : '');
+      const method = isEdit ? 'PUT' : 'POST';
+      const token  = authToken || localStorage.getItem('lis_token') || '';
+
+      try {
+        const res  = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }
+        ,
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (data.success && data.data) {
+          const d = data.data;
+          const rec = { id: d.id, code: d.code||'', name: d.name||'',
+            mobile: d.mobile||'', email: d.email||'', address: d.address||'',
+            city: d.city||'', patientType: d.patientType||'OPD', rateType: d.rateType||'MRP' };
+          if (isEdit) {
+            const idx = refDoctors.findIndex(x => x.id == id);
+            if (idx >= 0) refDoctors[idx] = rec; else refDoctors.push(rec);
+          } else {
+            refDoctors.push(rec);
+          }
+          showToast(isEdit ? '✅ Doctor updated!' : '✅ Doctor added!', 'success');
+          closeModal();
+          navigate('ref-doctor');
+        } else {
+          const err = data.message || 'Save failed';
+          if (msg) { msg.style.cssText='display:block;padding:8px 12px;border-radius:6px;background:#fee2e2;color:#dc2626;font-size:13px;margin-bottom:10px'; msg.textContent = '❌ ' + err; }
+          showToast(err, 'error');
+          if (btn) { btn.disabled = false; btn.textContent = isEdit ? '💾 Update Doctor' : '➕ Add Doctor'; }
+        }
+      } catch(e) {
+        console.error('saveRD error:', e);
+        if (msg) { msg.style.cssText='display:block;padding:8px 12px;border-radius:6px;background:#fee2e2;color:#dc2626;font-size:13px;margin-bottom:10px'; msg.textContent = '❌ Cannot reach backend. Is server running?'; }
+        if (btn) { btn.disabled = false; btn.textContent = isEdit ? '💾 Update Doctor' : '➕ Add Doctor'; }
+      }
+    }
+
+  
+    // ── Print Patient Report (fixed) ──
+    async function printPatientReport(regId) {
+      const token = authToken || localStorage.getItem('lis_token') || '';
+      showToast('Loading report...', 'info');
+
+      try {
+        // Try to get full registration details
+        const res  = await fetch('http://localhost:8081/api/v1/registrations/' + regId, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const data = await res.json();
+        const reg  = (data.success && data.data) ? data.data : null;
+
+        if (!reg) {
+          // Fallback to prData
+          reg = prData.find(function(r){ return r.id === regId; });
+        }
+
+        if (!reg) { showToast('Report data not found', 'error'); return; }
+
+        const patName    = reg.patient?.name   || '';
+        const patAge     = (reg.patient?.age   || '') + ' ' + (reg.patient?.ageUnit || 'Years');
+        const patGender  = reg.patient?.gender || '';
+        const patMobile  = reg.patient?.mobile || '';
+        const regNo      = reg.regNo || '';
+        const refDoc     = reg.refDoctor?.name || 'Self';
+        const center     = reg.center || 'OPD';
+        const regDate    = reg.createdAt ? new Date(reg.createdAt).toLocaleString('en-GB') : '';
+        const tests      = (reg.tests || []);
+        const totalAmt   = reg.totalAmount  || 0;
+        const paidAmt    = reg.paidAmount   || 0;
+        const balanceAmt = reg.balanceAmount || 0;
+
+        const testRows = tests.map(function(t, i) {
+          return '<tr>' +
+            '<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0">' + (i+1) + '</td>' +
+            '<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:600">' + (t.name||'') + '</td>' +
+            '<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0">' + (t.sampleType||'Blood') + '</td>' +
+            '<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center">' +
+              '<span style="background:' + (t.status==='COMPLETED'?'#dcfce7':'#fef3c7') + ';color:' +
+              (t.status==='COMPLETED'?'#15803d':'#92400e') + ';padding:2px 10px;border-radius:4px;font-size:12px">' +
+              (t.status||'PENDING') + '</span></td>' +
+            '<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-family:monospace">&#8377;' + (t.rate||0) + '</td>' +
+          '</tr>';
+        }).join('');
+
+        const html = '<!DOCTYPE html><html><head><title>Report - ' + regNo + '</title>' +
+          '<style>' +
+            'body{font-family:Arial,sans-serif;margin:0;padding:20px;color:#1e293b}' +
+            'table{border-collapse:collapse;width:100%}' +
+            '.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1a3a5c;padding-bottom:16px;margin-bottom:20px}' +
+            '.lab-name{font-size:22px;font-weight:900;color:#1a3a5c}' +
+            '.lab-sub{font-size:12px;color:#64748b;margin-top:2px}' +
+            '.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;margin-bottom:20px;padding:14px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0}' +
+            '.info-row{display:flex;gap:6px;font-size:13px}' +
+            '.info-label{color:#64748b;min-width:100px;font-weight:600}' +
+            '.info-val{color:#1e293b;font-weight:700}' +
+            '.section-title{font-size:14px;font-weight:700;color:#1a3a5c;margin:16px 0 8px;padding-bottom:4px;border-bottom:2px solid #e2e8f0}' +
+            'thead tr{background:#1a3a5c;color:#fff}' +
+            'thead th{padding:10px 12px;text-align:left;font-size:13px}' +
+            '.bill-box{margin-top:16px;display:flex;justify-content:flex-end}' +
+            '.bill-inner{width:280px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px}' +
+            '.bill-row{display:flex;justify-content:space-between;padding:5px 0;font-size:13px;border-bottom:1px solid #e2e8f0}' +
+            '.bill-total{display:flex;justify-content:space-between;padding:8px 0;font-size:15px;font-weight:800;color:#1a3a5c}' +
+            '.footer{margin-top:30px;text-align:center;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px}' +
+            '.no-print{text-align:center;margin-bottom:16px}' +
+            '@media print{.no-print{display:none}}' +
+          '</style></head><body>' +
+
+          '<div class="no-print">' +
+            '<button onclick="window.print()" style="background:#1a3a5c;color:#fff;border:none;padding:10px 28px;border-radius:6px;font-size:14px;cursor:pointer;margin-right:8px">&#128424; Print</button>' +
+            '<button onclick="window.close()" style="background:#64748b;color:#fff;border:none;padding:10px 20px;border-radius:6px;font-size:14px;cursor:pointer">Close</button>' +
+          '</div>' +
+
+          '<div class="header">' +
+            '<div>' +
+              '<div class="lab-name">T-MAT Global Laboratory</div>' +
+              '<div class="lab-sub">AWALEMEDISOFT · Laboratory Information System</div>' +
+              '<div class="lab-sub">Maharashtra, India · info@tmatglobal.com</div>' +
+            '</div>' +
+            '<div style="text-align:right">' +
+              '<div style="font-size:11px;color:#64748b">Reg. No.</div>' +
+              '<div style="font-size:22px;font-weight:900;color:#1a3a5c;font-family:monospace">' + regNo + '</div>' +
+              '<div style="font-size:11px;color:#64748b;margin-top:2px">' + regDate + '</div>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="info-grid">' +
+            '<div class="info-row"><span class="info-label">Patient Name</span><span class="info-val">' + patName + '</span></div>' +
+            '<div class="info-row"><span class="info-label">Age / Gender</span><span class="info-val">' + patAge + ' / ' + patGender + '</span></div>' +
+            '<div class="info-row"><span class="info-label">Mobile</span><span class="info-val">' + patMobile + '</span></div>' +
+            '<div class="info-row"><span class="info-label">Center</span><span class="info-val">' + center + '</span></div>' +
+            '<div class="info-row"><span class="info-label">Ref. Doctor</span><span class="info-val">' + refDoc + '</span></div>' +
+            '<div class="info-row"><span class="info-label">Reg. Date</span><span class="info-val">' + regDate + '</span></div>' +
+          '</div>' +
+
+          '<div class="section-title">Tests Ordered</div>' +
+          '<table>' +
+            '<thead><tr><th style="width:40px">#</th><th>Test Name</th><th>Sample Type</th><th style="text-align:center">Status</th><th style="text-align:right">Rate (&#8377;)</th></tr></thead>' +
+            '<tbody>' + (testRows || '<tr><td colspan="5" style="padding:16px;text-align:center;color:#94a3b8">No tests found</td></tr>') + '</tbody>' +
+          '</table>' +
+
+          '<div class="bill-box"><div class="bill-inner">' +
+            '<div class="bill-row"><span style="color:#64748b">Total Charges</span><span style="font-weight:700">&#8377;' + totalAmt + '</span></div>' +
+            '<div class="bill-row"><span style="color:#64748b">Amount Paid</span><span style="color:#15803d;font-weight:700">&#8377;' + paidAmt + '</span></div>' +
+            '<div class="bill-total"><span>Balance Due</span><span style="color:#dc2626">&#8377;' + balanceAmt + '</span></div>' +
+          '</div></div>' +
+
+          '<div class="footer">T-MAT Global Technologies Pvt. Ltd. · Laboratory Information System v3.0 · ' + new Date().toLocaleDateString('en-GB') + '</div>' +
+
+          '<script>setTimeout(function(){ }, 300);<\/script>' +
+          '</body></html>';
+
+        const win = window.open('', '_blank', 'width=900,height=750,toolbar=0,menubar=0,scrollbars=1');
+        if (win) {
+          win.document.write(html);
+          win.document.close();
+          setTimeout(function(){ win.print(); }, 800);
+        } else {
+          showToast('Please allow popups for this site', 'warn');
+        }
+
+      } catch(e) {
+        console.error('printPatientReport error:', e);
+        showToast('Error generating report: ' + e.message, 'error');
+      }
+    }
+
+    // ── Download Patient Report (fixed) ──
+    async function downloadPatientReport(regId) {
+      const token = authToken || localStorage.getItem('lis_token') || '';
+      showToast('Generating PDF report...', 'info');
+      try {
+        const res = await fetch('http://localhost:8081/api/v1/reports/patient/' + regId, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) throw new Error('Report not available (status ' + res.status + ')');
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        const reg  = prData.find(function(r){ return r.id === regId; });
+        a.href     = url;
+        a.download = 'Report_' + (reg?.regNo || regId) + '.pdf';
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Report downloaded!', 'success');
+      } catch(e) {
+        showToast('PDF download failed — opening print view instead', 'warn');
+        printPatientReport(regId);
+      }
+    }
+
+  
+    // ── Print Patient Report — uses backend PDF ──
+    async function printPatientReport(regId) {
+      const token = authToken || localStorage.getItem('lis_token') || '';
+      const reg   = prData.find(function(r){ return r.id === regId; });
+      const regNo = reg ? reg.regNo : regId;
+      showToast('Opening report...', 'info');
+      try {
+        const res = await fetch('http://localhost:8081/api/v1/reports/patient/' + regId, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) throw new Error('Status ' + res.status);
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const win  = window.open(url, '_blank');
+        if (!win) showToast('Please allow popups for this site', 'warn');
+      } catch(e) {
+        showToast('Could not load report: ' + e.message, 'error');
+      }
+    }
+
+    // ── Download Patient Report — uses backend PDF ──
+    async function downloadPatientReport(regId) {
+      const token = authToken || localStorage.getItem('lis_token') || '';
+      const reg   = prData.find(function(r){ return r.id === regId; });
+      const regNo = reg ? reg.regNo : regId;
+      showToast('Downloading report...', 'info');
+      try {
+        const res = await fetch('http://localhost:8081/api/v1/reports/patient/' + regId, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) throw new Error('Status ' + res.status);
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = 'Report_' + regNo + '.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('Report downloaded!', 'success');
+      } catch(e) {
+        showToast('Download failed: ' + e.message, 'error');
+      }
     }
 
   </script>
