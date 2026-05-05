@@ -61,4 +61,38 @@ public class RegistrationController {
     public ResponseEntity<ApiResponse<String>> nextRegNo() {
         return ResponseEntity.ok(ApiResponse.ok(registrationService.peekNextRegNo()));
     }
+
+    // TAT Report - registrations with test timing info
+    @GetMapping("/tat-report")
+    public ResponseEntity<ApiResponse<Page<RegistrationResponse>>> tatReport(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(required = false) String patientName,
+            @RequestParam(required = false) String regNo,
+            @RequestParam(required = false) String testName,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                registrationService.search(from, to, patientName, null, regNo, null, page, size)));
+    }
+
+    // Pending Report - registrations not yet completed
+    @GetMapping("/pending")
+    public ResponseEntity<ApiResponse<Page<RegistrationResponse>>> pendingReport(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                registrationService.search(from, to, null, null, null, "REGISTERED", page, size)));
+    }
+
+    // Sample status update for collection/acceptance
+    @PatchMapping("/{id}/sample-status")
+    public ResponseEntity<ApiResponse<RegistrationResponse>> updateSampleStatus(
+            @PathVariable Long id,
+            @RequestParam String status) {
+        return ResponseEntity.ok(ApiResponse.ok("Sample status updated",
+                registrationService.updateStatus(id, status)));
+    }
 }

@@ -77,8 +77,6 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
                         .requestMatchers(
-                                "/app",
-                                "/app/**",
                                 "/",
                                 "/index.html",
                                 "/*.html",
@@ -88,16 +86,14 @@ public class SecurityConfig {
                                 "/*.png",
                                 "/*.svg",
                                 "/*.json",
+                                "/styles.css",
+                                "/static/**",
                                 "/assets/**",
-                                "/static/**")
+                                "/app",
+                                "/app/**")
                         .permitAll()
                         .requestMatchers("/health", "/actuator/**", "/v1/reports/**").permitAll()
-                        .requestMatchers(
-                                "/auth/**",
-                                "/auth/login",
-                                "/auth/logout",
-                                "/auth/refresh")
-                        .permitAll()
+                        .requestMatchers("/auth/**", "/auth/login", "/auth/logout", "/auth/refresh").permitAll()
                         .requestMatchers(
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",

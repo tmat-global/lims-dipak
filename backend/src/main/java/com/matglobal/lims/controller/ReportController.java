@@ -24,10 +24,25 @@ public class ReportController {
                     .contentType(MediaType.APPLICATION_PDF)
                     .body(pdf);
         } catch (Exception e) {
-            log.error("Report generation failed: {}", e.getMessage(), e);
+            log.error("Patient report failed: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error: " + e.getMessage() + " | Cause: " + 
-                          (e.getCause() != null ? e.getCause().getMessage() : "unknown"));
+                    .body("Error: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/billing/{registrationId}")
+    public ResponseEntity<?> getBillingReceipt(@PathVariable Long registrationId) {
+        try {
+            byte[] pdf = reportService.generateBillingReceipt(registrationId);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "inline; filename=billing_" + registrationId + ".pdf")
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .body(pdf);
+        } catch (Exception e) {
+            log.error("Billing report failed: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error: " + e.getMessage());
         }
     }
 }

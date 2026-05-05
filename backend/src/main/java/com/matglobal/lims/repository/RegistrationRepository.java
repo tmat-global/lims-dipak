@@ -15,6 +15,7 @@ import java.util.Optional;
 public interface RegistrationRepository extends JpaRepository<Registration, Long> {
 
     Optional<Registration> findByRegNo(String regNo);
+    List<Registration> findByCreatedAtBetween(LocalDateTime from, LocalDateTime to);
     boolean existsByRegNo(String regNo);
 
     @Query("SELECT r FROM Registration r WHERE r.createdAt BETWEEN :from AND :to " +

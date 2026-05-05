@@ -40,6 +40,6 @@ public class RegistrationTest extends BaseEntity {
     private LocalDateTime testedAt;
 
     public enum TestStatus {
-        PENDING, TESTED, AUTHORIZED
+        PENDING, TESTED, AUTHORIZED, COMPLETED, SAMPLE_COLLECTED, SAMPLE_ACCEPTED, SAMPLE_REJECTED, DISPATCHED
     }
 }
